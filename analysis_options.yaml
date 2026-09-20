@@ -1,0 +1,31 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    # The nutritional core is zero-trust: an unhandled sealed-class branch is a
+    # correctness defect, not a style nit.
+    non_exhaustive_switch_statement: error
+    non_exhaustive_switch_expression: error
+    unnecessary_null_comparison: warning
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - build/**
+
+linter:
+  rules:
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - prefer_const_constructors
+    - prefer_const_constructors_in_immutables
+    - prefer_const_declarations
+    - prefer_final_locals
+    - prefer_relative_imports
+    - require_trailing_commas
+    - sort_constructors_first
+    - unawaited_futures
+    - use_super_parameters

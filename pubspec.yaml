@@ -1,0 +1,31 @@
+name: mawzoon
+description: >-
+  موزون — Mawzoon. The official ordering application for a premium, balanced
+  dining restaurant. Tri-partitioned plates: Protein + Smart Carb + Vital Fiber.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Motion. Tier 2/3 choreography leans on declarative effect chains so that
+  # every animation stays on Transform/Opacity and never triggers a layout pass.
+  flutter_animate: ^4.5.0
+
+  # Typography. Plus Jakarta Sans (latin metrics) + IBM Plex Sans Arabic.
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

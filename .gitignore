@@ -117,3 +117,20 @@ app.*.symbols
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
+# ---------------------------------------------------------------------------
+# Mawzoon app overrides
+# ---------------------------------------------------------------------------
+# The rules above are inherited from the Flutter *SDK* repository template,
+# where `*.lock` is correct. This repository is an application, so the resolved
+# dependency set must be committed for reproducible builds.
+!pubspec.lock
+
+# Generated platform runners. These are produced locally by
+# `flutter create . --platforms=...` (see SETUP.md) rather than committed, so
+# that the repository stays source-only until the platform shells are wired up.
+/android/
+/ios/
+/web/
+/macos/
+/linux/
+/windows/

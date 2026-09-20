@@ -1,0 +1,150 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mawzoon/core/menu/dietary_metadata.dart';
+import 'package:mawzoon/core/menu/mawzoon_catalog.dart';
+import 'package:mawzoon/core/nutrition/balance_band.dart';
+import 'package:mawzoon/core/nutrition/nutritional_summary.dart';
+import 'package:mawzoon/core/nutrition/portion_scale.dart';
+import 'package:mawzoon/features/curated_menu/data/signature_plate_catalog.dart';
+import 'package:mawzoon/features/curated_menu/domain/signature_plate.dart';
+import 'package:mawzoon/features/plate_builder/domain/plate_builder_state.dart';
+
+void main() {
+  group('curated menu shape', () {
+    test('ships six signature plates with unique ids', () {
+      expect(SignaturePlateCatalog.all, hasLength(6));
+      final List<String> ids =
+          SignaturePlateCatalog.all.map((SignaturePlate p) => p.id).toList();
+      expect(ids.toSet(), hasLength(ids.length));
+    });
+
+    test('every component comes from the component catalogue', () {
+      for (final SignaturePlate plate in SignaturePlateCatalog.all) {
+        expect(MawzoonCatalog.proteins, contains(plate.protein),
+            reason: plate.id,);
+        expect(MawzoonCatalog.carbs, contains(plate.carb), reason: plate.id);
+        expect(MawzoonCatalog.fibers, contains(plate.fiber), reason: plate.id);
+      }
+    });
+
+    test('lookup finds known ids and refuses unknown ones', () {
+      expect(
+        SignaturePlateCatalog.byId('signature.ember_standard'),
+        SignaturePlateCatalog.emberStandard,
+      );
+      expect(SignaturePlateCatalog.byId('signature.nope'), isNull);
+    });
+
+    test('every plate carries complete bilingual copy', () {
+      final RegExp arabic = RegExp(r'[؀-ۿ]');
+      for (final SignaturePlate plate in SignaturePlateCatalog.all) {
+        expect(plate.name.ar.trim(), isNotEmpty, reason: plate.id);
+        expect(plate.name.en.trim(), isNotEmpty, reason: plate.id);
+        expect(plate.tagline.ar.trim(), isNotEmpty, reason: plate.id);
+        expect(plate.chefNote.ar.trim(), isNotEmpty, reason: plate.id);
+        expect(arabic.hasMatch(plate.name.ar), isTrue, reason: plate.id);
+        expect(arabic.hasMatch(plate.chefNote.ar), isTrue, reason: plate.id);
+      }
+    });
+
+    test('the menu offers at least one fully plant-based plate', () {
+      final Iterable<SignaturePlate> plantBased = SignaturePlateCatalog.all
+          .where((SignaturePlate p) => p
+              .summaryAt(PortionScale.standardBalance)
+              .dietaryTags
+              .contains(DietaryTag.plantBased),);
+      expect(plantBased, isNotEmpty);
+      expect(plantBased, contains(SignaturePlateCatalog.gardenEmber));
+    });
+  });
+
+  // The contract that makes the Curated Track trustworthy: a guest who taps a
+  // signature plate and never opens the Architect must still land inside the
+  // house band at whichever portion they chose.
+  group('every signature plate lands inside its house band', () {
+    for (final SignaturePlate plate in SignaturePlateCatalog.all) {
+      for (final PortionScale scale in PortionScale.values) {
+        test('${plate.id} at ${scale.name}', () {
+          final NutritionalSummary summary = plate.summaryAt(scale);
+          final BalanceBand band = BalanceBand.forScale(scale);
+
+          expect(summary.isComplete, isTrue);
+          expect(
+            band.contains(summary.totalKilocalories),
+            isTrue,
+            reason: '${plate.id} at ${scale.name} is '
+                '${summary.totalKilocalories.toStringAsFixed(1)} kcal, outside '
+                '${band.lowerBoundKilocalories}–${band.upperBoundKilocalories}',
+          );
+          expect(summary.framing, PlateEnergyFraming.balanced);
+        });
+      }
+    }
+  });
+
+  group('signature plates are protein-forward', () {
+    for (final SignaturePlate plate in SignaturePlateCatalog.all) {
+      test('${plate.id} clears 30 g of protein at the standard portion', () {
+        final NutritionalSummary summary =
+            plate.summaryAt(PortionScale.standardBalance);
+        expect(summary.totalMacros.proteinGrams, greaterThanOrEqualTo(30),
+            reason: plate.id,);
+      });
+    }
+  });
+
+  group('curated to custom handoff', () {
+    test('a signature plate opens in the Architect already balanced', () {
+      for (final SignaturePlate plate in SignaturePlateCatalog.all) {
+        final PlateBuilderState state = PlateBuilderState.from(
+          plate.selectionAt(PortionScale.standardBalance),
+        );
+        expect(state, isA<PlateBalanced>(), reason: plate.id);
+        expect(state.canCheckout, isTrue, reason: plate.id);
+      }
+    });
+
+    test('the handoff preserves the chosen portion scale', () {
+      const SignaturePlate plate = SignaturePlateCatalog.coastalSaffron;
+      expect(
+        plate.selectionAt(PortionScale.athleticLoad).scale,
+        PortionScale.athleticLoad,
+      );
+      expect(
+        plate.summaryAt(PortionScale.athleticLoad).scale,
+        PortionScale.athleticLoad,
+      );
+    });
+  });
+
+  group('pricing', () {
+    test('includes component surcharges', () {
+      // Salmon carries a 700 surcharge; basmati and broccolini carry none.
+      expect(
+        SignaturePlateCatalog.coastalSaffron
+            .priceAt(PortionScale.standardBalance),
+        4900 + 700,
+      );
+      expect(
+        SignaturePlateCatalog.emberStandard
+            .priceAt(PortionScale.standardBalance),
+        4900,
+      );
+    });
+
+    test('the Athletic Load carries a flat uplift', () {
+      for (final SignaturePlate plate in SignaturePlateCatalog.all) {
+        final int standard = plate.priceAt(PortionScale.standardBalance);
+        final int athletic = plate.priceAt(PortionScale.athleticLoad);
+        expect(athletic - standard, 1500, reason: plate.id);
+      }
+    });
+
+    test('every price is positive', () {
+      for (final SignaturePlate plate in SignaturePlateCatalog.all) {
+        for (final PortionScale scale in PortionScale.values) {
+          expect(plate.priceAt(scale), greaterThan(0), reason: plate.id);
+        }
+      }
+    });
+  });
+}
