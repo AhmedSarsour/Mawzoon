@@ -24,10 +24,15 @@ sealed class IngredientOption {
     required this.method,
     required this.allergens,
     required this.dietaryTags,
+    this.glycemicIndex = 0,
     this.surchargeMinorUnits = 0,
   })  : assert(id.length > 0, 'id must not be empty'),
         assert(basePortionGrams > 0, 'basePortionGrams must be positive'),
-        assert(surchargeMinorUnits >= 0, 'surcharge must be non-negative');
+        assert(surchargeMinorUnits >= 0, 'surcharge must be non-negative'),
+        assert(
+          glycemicIndex >= 0 && glycemicIndex <= 110,
+          'glycemicIndex is a 0-110 scale against pure glucose',
+        );
 
   /// Stable identifier, used for cart lines, analytics and deep links.
   final String id;
@@ -53,6 +58,13 @@ sealed class IngredientOption {
   /// Dietary properties of the component.
   final Set<DietaryTag> dietaryTags;
 
+  /// Glycemic index on the standard 0-110 scale against pure glucose.
+  ///
+  /// Zero for a component with no digestible carbohydrate, where the measure
+  /// is undefined rather than low — it contributes nothing to glycemic load
+  /// either way, so the distinction never reaches a figure a guest sees.
+  final int glycemicIndex;
+
   /// Optional upcharge over the base plate price, in minor currency units
   /// (halalas / fils). Zero for most components.
   final int surchargeMinorUnits;
@@ -62,6 +74,11 @@ sealed class IngredientOption {
 
   /// Energy of the standard portion, in kilocalories.
   double get baseKilocalories => baseMacros.kilocalories;
+
+  /// Glycemic load of the standard portion: GI weighted by the digestible
+  /// carbohydrate this component actually contributes.
+  double get baseGlycemicLoad =>
+      glycemicIndex * baseMacros.netCarbohydrateGrams / 100;
 
   /// Resolves this option to a concrete portion at [scale].
   PortionedComponent atScale(PortionScale scale) {
@@ -100,6 +117,7 @@ final class ProteinOption extends IngredientOption {
     required super.method,
     required super.allergens,
     required super.dietaryTags,
+    super.glycemicIndex,
     super.surchargeMinorUnits,
   });
 
@@ -119,6 +137,7 @@ final class CarbOption extends IngredientOption {
     required super.method,
     required super.allergens,
     required super.dietaryTags,
+    super.glycemicIndex,
     super.surchargeMinorUnits,
   });
 
@@ -138,6 +157,7 @@ final class FiberOption extends IngredientOption {
     required super.method,
     required super.allergens,
     required super.dietaryTags,
+    super.glycemicIndex,
     super.surchargeMinorUnits,
   });
 
@@ -175,6 +195,12 @@ final class PortionedComponent {
 
   /// Energy of this portion, in kilocalories.
   double get kilocalories => macros.kilocalories;
+
+  /// Glycemic load of this portion. Scales with the carbohydrate it carries,
+  /// because glycemic index is a property of the food and load is a property
+  /// of the serving.
+  double get glycemicLoad =>
+      option.glycemicIndex * macros.netCarbohydrateGrams / 100;
 
   @override
   String toString() =>

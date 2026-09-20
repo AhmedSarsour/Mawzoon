@@ -49,9 +49,9 @@ void main() {
     test('can be seeded with an existing selection', () {
       final PlateBuilderController seeded = PlateBuilderController(
         initialSelection: PlateSelection.empty
-            .select(MawzoonCatalog.herbGrilledSalmon)
-            .select(MawzoonCatalog.saffronBasmati)
-            .select(MawzoonCatalog.charredBroccolini),
+            .select(MawzoonCatalog.smashedLeanBeef)
+            .select(MawzoonCatalog.steamedBasmati)
+            .select(MawzoonCatalog.charredGardenVeggies),
       );
       addTearDown(seeded.dispose);
 
@@ -65,9 +65,9 @@ void main() {
       final List<Type> observed = <Type>[];
       controller.addListener(() => observed.add(controller.value.runtimeType));
 
-      controller.select(MawzoonCatalog.flameSearedChicken);
+      controller.select(MawzoonCatalog.herbGrilledBreast);
       controller.select(MawzoonCatalog.airFriedSpicedPotatoes);
-      controller.select(MawzoonCatalog.charredBroccolini);
+      controller.select(MawzoonCatalog.charredGardenVeggies);
 
       expect(observed, <Type>[PlateConfiguring, PlateConfiguring, PlateBalanced]);
       expect(controller.canCheckout, isTrue);
@@ -75,18 +75,18 @@ void main() {
 
     test('order of assembly does not matter', () {
       controller
-        ..select(MawzoonCatalog.charredBroccolini)
-        ..select(MawzoonCatalog.herbedQuinoa)
-        ..select(MawzoonCatalog.zaatarShrimp);
+        ..select(MawzoonCatalog.charredGardenVeggies)
+        ..select(MawzoonCatalog.toastedQuinoa)
+        ..select(MawzoonCatalog.marinatedThighs);
 
       expect(controller.value, isA<PlateBalanced>());
     });
 
     test('clearing a compartment releases the lock', () {
       controller
-        ..select(MawzoonCatalog.flameSearedChicken)
-        ..select(MawzoonCatalog.saffronBasmati)
-        ..select(MawzoonCatalog.charredBroccolini);
+        ..select(MawzoonCatalog.herbGrilledBreast)
+        ..select(MawzoonCatalog.steamedBasmati)
+        ..select(MawzoonCatalog.charredGardenVeggies);
       expect(controller.value, isA<PlateBalanced>());
 
       controller.clearSegment(PlateSegment.smartCarb);
@@ -97,39 +97,80 @@ void main() {
     test('reset returns to empty but keeps the guest\'s scale preference', () {
       controller
         ..setScale(PortionScale.athleticLoad)
-        ..select(MawzoonCatalog.flameSearedChicken)
-        ..select(MawzoonCatalog.saffronBasmati)
+        ..select(MawzoonCatalog.herbGrilledBreast)
+        ..select(MawzoonCatalog.steamedBasmati)
         ..reset();
 
       expect(controller.value, isA<PlateEmpty>());
       expect(controller.scale, PortionScale.athleticLoad);
     });
 
-    test('changing scale recomputes macros without disturbing the state kind',
+    test('changing scale on a finished plate moves it to PlateVolumeAdjusted',
         () {
       controller
-        ..select(MawzoonCatalog.flameSearedChicken)
+        ..select(MawzoonCatalog.herbGrilledBreast)
         ..select(MawzoonCatalog.airFriedSpicedPotatoes)
-        ..select(MawzoonCatalog.charredBroccolini);
-
-      final double standard = controller.macros.totalKilocalories;
-      controller.toggleScale();
+        ..select(MawzoonCatalog.charredGardenVeggies);
 
       expect(controller.value, isA<PlateBalanced>());
+      final double standard = controller.macros.totalKilocalories;
+
+      controller.toggleScale();
+
+      expect(controller.value, isA<PlateVolumeAdjusted>());
       expect(controller.macros.totalKilocalories, greaterThan(standard));
       expect(controller.macros.scale, PortionScale.athleticLoad);
+      expect(controller.canCheckout, isTrue,
+          reason: 'a loaded plate is still an orderable plate',);
+
+      final PlateVolumeAdjusted adjusted =
+          controller.value as PlateVolumeAdjusted;
+      expect(adjusted.kilocalorieDelta,
+          closeTo(controller.macros.totalKilocalories - standard, 1e-9),);
+    });
+
+    test('toggling back down returns to PlateBalanced', () {
+      controller
+        ..select(MawzoonCatalog.herbGrilledBreast)
+        ..select(MawzoonCatalog.airFriedSpicedPotatoes)
+        ..select(MawzoonCatalog.charredGardenVeggies)
+        ..toggleScale()
+        ..toggleScale();
+
+      expect(controller.value, isA<PlateBalanced>());
+      expect(controller.scale, PortionScale.standardBalance);
+    });
+
+    test('a partial plate on the athletic load stays PlateConfiguring', () {
+      controller
+        ..setScale(PortionScale.athleticLoad)
+        ..select(MawzoonCatalog.herbGrilledBreast)
+        ..select(MawzoonCatalog.airFriedSpicedPotatoes);
+
+      expect(controller.value, isA<PlateConfiguring>());
+      expect(controller.scale, PortionScale.athleticLoad);
+    });
+
+    test('completing a plate already on the athletic load lands adjusted', () {
+      controller
+        ..setScale(PortionScale.athleticLoad)
+        ..select(MawzoonCatalog.herbGrilledBreast)
+        ..select(MawzoonCatalog.airFriedSpicedPotatoes)
+        ..select(MawzoonCatalog.charredGardenVeggies);
+
+      expect(controller.value, isA<PlateVolumeAdjusted>());
     });
   });
 
   group('no-op guards', () {
     test('re-selecting the same component changes nothing and emits nothing',
         () async {
-      controller.select(MawzoonCatalog.flameSearedChicken);
+      controller.select(MawzoonCatalog.herbGrilledBreast);
       final PlateBuilderState before = controller.value;
 
       int notifications = 0;
       controller.addListener(() => notifications++);
-      controller.select(MawzoonCatalog.flameSearedChicken);
+      controller.select(MawzoonCatalog.herbGrilledBreast);
       await recorder.settle();
 
       expect(identical(controller.value, before), isTrue);
@@ -163,24 +204,24 @@ void main() {
   group('events and haptics', () {
     test('a fill reports what it displaced', () async {
       controller
-        ..select(MawzoonCatalog.flameSearedChicken)
-        ..select(MawzoonCatalog.herbGrilledSalmon);
+        ..select(MawzoonCatalog.herbGrilledBreast)
+        ..select(MawzoonCatalog.smashedLeanBeef);
       await recorder.settle();
 
       final List<SegmentFilled> fills =
           recorder.events.whereType<SegmentFilled>().toList();
       expect(fills, hasLength(2));
       expect(fills.first.replaced, isNull);
-      expect(fills.last.replaced, MawzoonCatalog.flameSearedChicken);
+      expect(fills.last.replaced, MawzoonCatalog.herbGrilledBreast);
       expect(fills.last.segment, PlateSegment.protein);
       expect(fills.last.haptic, HapticCue.light);
     });
 
     test('the balance lock fires exactly once, on the threshold', () async {
       controller
-        ..select(MawzoonCatalog.flameSearedChicken)
-        ..select(MawzoonCatalog.saffronBasmati)
-        ..select(MawzoonCatalog.charredBroccolini);
+        ..select(MawzoonCatalog.herbGrilledBreast)
+        ..select(MawzoonCatalog.steamedBasmati)
+        ..select(MawzoonCatalog.charredGardenVeggies);
       await recorder.settle();
 
       final List<BalanceLocked> locks =
@@ -193,11 +234,11 @@ void main() {
     test('swapping on an already-balanced plate does not re-fire the lock',
         () async {
       controller
-        ..select(MawzoonCatalog.flameSearedChicken)
-        ..select(MawzoonCatalog.saffronBasmati)
-        ..select(MawzoonCatalog.charredBroccolini)
-        ..select(MawzoonCatalog.herbGrilledSalmon)
-        ..select(MawzoonCatalog.freekehPilaf);
+        ..select(MawzoonCatalog.herbGrilledBreast)
+        ..select(MawzoonCatalog.steamedBasmati)
+        ..select(MawzoonCatalog.charredGardenVeggies)
+        ..select(MawzoonCatalog.smashedLeanBeef)
+        ..select(MawzoonCatalog.wholeBulgur);
       await recorder.settle();
 
       expect(recorder.events.whereType<BalanceLocked>(), hasLength(1));
@@ -205,22 +246,56 @@ void main() {
 
     test('breaking and remaking the plate fires the lock again', () async {
       controller
-        ..select(MawzoonCatalog.flameSearedChicken)
-        ..select(MawzoonCatalog.saffronBasmati)
-        ..select(MawzoonCatalog.charredBroccolini)
-        ..clearSegment(MawzoonCatalog.saffronBasmati.segment)
-        ..select(MawzoonCatalog.freekehPilaf);
+        ..select(MawzoonCatalog.herbGrilledBreast)
+        ..select(MawzoonCatalog.steamedBasmati)
+        ..select(MawzoonCatalog.charredGardenVeggies)
+        ..clearSegment(MawzoonCatalog.steamedBasmati.segment)
+        ..select(MawzoonCatalog.wholeBulgur);
       await recorder.settle();
 
       expect(recorder.events.whereType<BalanceLocked>(), hasLength(2));
       expect(recorder.events.whereType<BalanceReleased>(), hasLength(1));
     });
 
+
+    test('a volume change on a finished plate does not re-fire the lock',
+        () async {
+      controller
+        ..select(MawzoonCatalog.herbGrilledBreast)
+        ..select(MawzoonCatalog.steamedBasmati)
+        ..select(MawzoonCatalog.charredGardenVeggies)
+        ..toggleScale()
+        ..toggleScale();
+      await recorder.settle();
+
+      // Balanced -> VolumeAdjusted -> Balanced changes the state class twice
+      // without the plate ever becoming incomplete, so the milestone is spent
+      // exactly once.
+      expect(recorder.events.whereType<BalanceLocked>(), hasLength(1));
+      expect(recorder.events.whereType<BalanceReleased>(), isEmpty);
+      expect(recorder.events.whereType<ScaleChanged>(), hasLength(2));
+    });
+
+    test('completing a plate on the athletic load still fires the lock',
+        () async {
+      controller
+        ..setScale(PortionScale.athleticLoad)
+        ..select(MawzoonCatalog.koftaSpicedMince)
+        ..select(MawzoonCatalog.wholeWheatPasta)
+        ..select(MawzoonCatalog.mediterraneanSumacSalad);
+      await recorder.settle();
+
+      final BalanceLocked lock =
+          recorder.events.whereType<BalanceLocked>().single;
+      expect(lock.summary.scale, PortionScale.athleticLoad);
+      expect(lock.summary.isComplete, isTrue);
+    });
+
     test('undoing is silent — no haptic punishes a change of mind', () async {
       controller
-        ..select(MawzoonCatalog.flameSearedChicken)
-        ..select(MawzoonCatalog.saffronBasmati)
-        ..select(MawzoonCatalog.charredBroccolini)
+        ..select(MawzoonCatalog.herbGrilledBreast)
+        ..select(MawzoonCatalog.steamedBasmati)
+        ..select(MawzoonCatalog.charredGardenVeggies)
         ..clearSegment(PlateSegment.vitalFiber);
       await recorder.settle();
 
@@ -232,9 +307,9 @@ void main() {
     test('replaceSelection can complete a plate and fire the lock', () async {
       controller.replaceSelection(
         PlateSelection.empty
-            .select(MawzoonCatalog.smokedHarissaTofu)
-            .select(MawzoonCatalog.sweetPotatoMash)
-            .select(MawzoonCatalog.blisteredGreenBeans),
+            .select(MawzoonCatalog.pulledSlowCookedBeef)
+            .select(MawzoonCatalog.sweetPotatoWedges)
+            .select(MawzoonCatalog.mediterraneanSumacSalad),
       );
       await recorder.settle();
 
@@ -251,7 +326,7 @@ void main() {
       final StreamSubscription<PlateBuilderEvent> subscription =
           disposable.events.listen(seen.add, onDone: () => closed = true);
 
-      disposable.select(MawzoonCatalog.flameSearedChicken);
+      disposable.select(MawzoonCatalog.herbGrilledBreast);
       disposable.dispose();
       await Future<void>.delayed(Duration.zero);
 

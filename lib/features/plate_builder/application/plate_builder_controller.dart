@@ -107,7 +107,7 @@ final class PlateBuilderController extends ValueNotifier<PlateBuilderState> {
   /// Applies [next], re-derives the state, and emits [event] plus any
   /// threshold event the transition crossed.
   void _apply(PlateSelection next, PlateBuilderEvent? event) {
-    final bool wasBalanced = value is PlateBalanced;
+    final bool wasComplete = value.isComplete;
     _selection = next;
 
     final PlateBuilderState derived = PlateBuilderState.from(next);
@@ -115,10 +115,15 @@ final class PlateBuilderController extends ValueNotifier<PlateBuilderState> {
 
     if (event != null) _emit(event);
 
-    final bool isBalanced = derived is PlateBalanced;
-    if (isBalanced && !wasBalanced) {
-      _emit(BalanceLocked(summary: derived.finalMacros));
-    } else if (wasBalanced && !isBalanced) {
+    // The lock is keyed on completeness, not on PlateBalanced specifically.
+    // Moving a finished plate to the Athletic Load changes the state class but
+    // not the fact that the plate is done, so it must not re-fire the
+    // milestone — and completing a plate that is already on the Athletic Load
+    // must still fire it.
+    final bool isComplete = derived.isComplete;
+    if (isComplete && !wasComplete) {
+      _emit(BalanceLocked(summary: derived.macros));
+    } else if (wasComplete && !isComplete) {
       _emit(const BalanceReleased());
     }
   }

@@ -2,6 +2,7 @@ import '../menu/dietary_metadata.dart';
 import '../menu/ingredient_option.dart';
 import '../menu/plate_segment.dart';
 import 'balance_band.dart';
+import 'glycemic.dart';
 import 'macro_profile.dart';
 import 'portion_scale.dart';
 
@@ -17,6 +18,7 @@ final class SegmentContribution {
     required this.macros,
     required this.portionGrams,
     required this.energyShare,
+    this.glycemicLoad = 0,
   });
 
   /// An unfilled compartment: no mass, no energy, zero arc sweep.
@@ -26,6 +28,7 @@ final class SegmentContribution {
         macros: MacroProfile.zero,
         portionGrams: 0,
         energyShare: 0,
+        glycemicLoad: 0,
       );
 
   /// The compartment described.
@@ -42,6 +45,9 @@ final class SegmentContribution {
   /// Zero when the plate carries no energy at all, which keeps the painter
   /// free of division-by-zero guards.
   final double energyShare;
+
+  /// Glycemic load contributed by this compartment.
+  final double glycemicLoad;
 
   /// Energy contributed by this compartment, in kilocalories.
   double get kilocalories => macros.kilocalories;
@@ -71,6 +77,7 @@ final class NutritionalSummary {
     required this.filledSegments,
     required this.allergens,
     required this.dietaryTags,
+    required this.glycemic,
   });
 
   /// Computes a summary from whichever compartments are filled.
@@ -105,6 +112,7 @@ final class NutritionalSummary {
     final Map<PlateSegment, SegmentContribution> contributions =
         <PlateSegment, SegmentContribution>{};
     double totalGrams = 0;
+    double totalGlycemicLoad = 0;
     final Set<Allergen> allergens = <Allergen>{};
 
     for (final PlateSegment segment in PlateSegment.buildOrder) {
@@ -114,6 +122,7 @@ final class NutritionalSummary {
         continue;
       }
       totalGrams += component.portionGrams;
+      totalGlycemicLoad += component.glycemicLoad;
       allergens.addAll(component.option.allergens);
       contributions[segment] = SegmentContribution(
         segment: segment,
@@ -122,6 +131,7 @@ final class NutritionalSummary {
         energyShare: totalKilocalories <= 0
             ? 0
             : component.macros.kilocalories / totalKilocalories,
+        glycemicLoad: component.glycemicLoad,
       );
     }
 
@@ -145,6 +155,12 @@ final class NutritionalSummary {
       filledSegments: Set<PlateSegment>.unmodifiable(bySegment.keys.toSet()),
       allergens: Set<Allergen>.unmodifiable(allergens),
       dietaryTags: Set<DietaryTag>.unmodifiable(sharedTags),
+      glycemic: GlycemicProfile.fromPlate(
+        load: totalGlycemicLoad,
+        proteinGrams: total.proteinGrams,
+        fatGrams: total.fatGrams,
+        dietaryFiberGrams: total.dietaryFiberGrams,
+      ),
     );
   }
 
@@ -175,6 +191,9 @@ final class NutritionalSummary {
 
   /// Tags shared by *every* filled compartment.
   final Set<DietaryTag> dietaryTags;
+
+  /// How quickly this plate's carbohydrate is likely to reach the bloodstream.
+  final GlycemicProfile glycemic;
 
   /// Total energy on the plate, in kilocalories.
   double get totalKilocalories => totalMacros.kilocalories;
@@ -234,9 +253,19 @@ final class NutritionalSummary {
   double get nominalProgress =>
       (totalKilocalories / band.nominalKilocalories).clamp(0.0, 1.0);
 
+  /// Grams of carbohydrate, rounded for display.
+  int get displayCarbohydrateGrams => totalMacros.carbohydrateGrams.round();
+
+  /// Grams of fat, rounded for display.
+  int get displayFatGrams => totalMacros.fatGrams.round();
+
+  /// Grams of dietary fibre, rounded for display.
+  int get displayFiberGrams => totalMacros.dietaryFiberGrams.round();
+
   @override
   String toString() => 'NutritionalSummary(${scale.name}, '
       '$displayKilocalories kcal, '
       'P${displayProteinGrams}g, '
+      'GL ${glycemic.displayLoad}, '
       '${filledSegments.length}/3 filled)';
 }

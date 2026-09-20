@@ -4,6 +4,7 @@ import 'package:mawzoon/core/menu/ingredient_option.dart';
 import 'package:mawzoon/core/menu/mawzoon_catalog.dart';
 import 'package:mawzoon/core/menu/plate_segment.dart';
 import 'package:mawzoon/core/nutrition/balance_band.dart';
+import 'package:mawzoon/core/nutrition/glycemic.dart';
 import 'package:mawzoon/core/nutrition/nutritional_summary.dart';
 import 'package:mawzoon/core/nutrition/portion_scale.dart';
 
@@ -48,7 +49,7 @@ void main() {
   group('partial plate', () {
     test('tracks which compartment comes next', () {
       final NutritionalSummary summary =
-          _summaryOf(<IngredientOption>[MawzoonCatalog.flameSearedChicken]);
+          _summaryOf(<IngredientOption>[MawzoonCatalog.herbGrilledBreast]);
 
       expect(summary.isEmpty, isFalse);
       expect(summary.isComplete, isFalse);
@@ -59,7 +60,7 @@ void main() {
 
     test('a single component owns the entire energy share', () {
       final NutritionalSummary summary =
-          _summaryOf(<IngredientOption>[MawzoonCatalog.saffronBasmati]);
+          _summaryOf(<IngredientOption>[MawzoonCatalog.steamedBasmati]);
 
       expect(
         summary.contributionFor(PlateSegment.smartCarb).energyShare,
@@ -71,9 +72,9 @@ void main() {
 
   group('complete plate', () {
     final NutritionalSummary summary = _summaryOf(<IngredientOption>[
-      MawzoonCatalog.flameSearedChicken,
+      MawzoonCatalog.herbGrilledBreast,
       MawzoonCatalog.airFriedSpicedPotatoes,
-      MawzoonCatalog.charredBroccolini,
+      MawzoonCatalog.charredGardenVeggies,
     ]);
 
     test('is complete with nothing left to choose', () {
@@ -108,7 +109,12 @@ void main() {
     test('total mass equals the sum of its portions', () {
       expect(
         summary.totalPortionGrams,
-        closeTo(150 + 160 + 110, 1e-9),
+        closeTo(
+          MawzoonCatalog.herbGrilledBreast.basePortionGrams +
+              MawzoonCatalog.airFriedSpicedPotatoes.basePortionGrams +
+              MawzoonCatalog.charredGardenVeggies.basePortionGrams,
+          1e-9,
+        ),
       );
     });
   });
@@ -117,16 +123,16 @@ void main() {
     test('Athletic Load grows protein and carb more than greens', () {
       final NutritionalSummary standard = _summaryOf(
         <IngredientOption>[
-          MawzoonCatalog.flameSearedChicken,
+          MawzoonCatalog.herbGrilledBreast,
           MawzoonCatalog.airFriedSpicedPotatoes,
-          MawzoonCatalog.charredBroccolini,
+          MawzoonCatalog.charredGardenVeggies,
         ],
       );
       final NutritionalSummary athletic = _summaryOf(
         <IngredientOption>[
-          MawzoonCatalog.flameSearedChicken,
+          MawzoonCatalog.herbGrilledBreast,
           MawzoonCatalog.airFriedSpicedPotatoes,
-          MawzoonCatalog.charredBroccolini,
+          MawzoonCatalog.charredGardenVeggies,
         ],
         scale: PortionScale.athleticLoad,
       );
@@ -145,15 +151,15 @@ void main() {
 
     test('the protein compartment gains share under Athletic Load', () {
       final NutritionalSummary standard = _summaryOf(<IngredientOption>[
-        MawzoonCatalog.flameSearedChicken,
+        MawzoonCatalog.herbGrilledBreast,
         MawzoonCatalog.airFriedSpicedPotatoes,
-        MawzoonCatalog.charredBroccolini,
+        MawzoonCatalog.charredGardenVeggies,
       ]);
       final NutritionalSummary athletic = _summaryOf(
         <IngredientOption>[
-          MawzoonCatalog.flameSearedChicken,
+          MawzoonCatalog.herbGrilledBreast,
           MawzoonCatalog.airFriedSpicedPotatoes,
-          MawzoonCatalog.charredBroccolini,
+          MawzoonCatalog.charredGardenVeggies,
         ],
         scale: PortionScale.athleticLoad,
       );
@@ -167,33 +173,170 @@ void main() {
 
   group('allergens and dietary tags', () {
     test('allergens are the union across filled compartments', () {
-      final NutritionalSummary summary = _summaryOf(<IngredientOption>[
-        MawzoonCatalog.herbGrilledSalmon, // fish
-        MawzoonCatalog.freekehPilaf, // gluten
-        MawzoonCatalog.blisteredGreenBeans, // tree nuts
+      // Gluten is the only allergen this menu declares — it comes from the
+      // two wheat carbs and nowhere else.
+      final NutritionalSummary withGluten = _summaryOf(<IngredientOption>[
+        MawzoonCatalog.smashedLeanBeef,
+        MawzoonCatalog.wholeBulgur,
+        MawzoonCatalog.mediterraneanSumacSalad,
       ]);
+      expect(withGluten.allergens, <Allergen>{Allergen.gluten});
 
+      final NutritionalSummary clean = _summaryOf(<IngredientOption>[
+        MawzoonCatalog.smashedLeanBeef,
+        MawzoonCatalog.toastedQuinoa,
+        MawzoonCatalog.mediterraneanSumacSalad,
+      ]);
+      expect(clean.allergens, isEmpty);
+    });
+
+    test('an empty allergen set is a positive assertion, not missing data', () {
+      // Every component is screened; a clean plate means screened and clear.
+      for (final IngredientOption option in MawzoonCatalog.all) {
+        expect(option.allergens, isNotNull, reason: option.id);
+      }
       expect(
-        summary.allergens,
-        <Allergen>{Allergen.fish, Allergen.gluten, Allergen.treeNuts},
+        MawzoonCatalog.all
+            .where((IngredientOption o) => o.allergens.isNotEmpty)
+            .map((IngredientOption o) => o.id),
+        <String>['carb.whole_bulgur', 'carb.whole_wheat_pasta'],
       );
     });
 
     test('a tag describes the plate only if every compartment carries it', () {
-      final NutritionalSummary mixed = _summaryOf(<IngredientOption>[
-        MawzoonCatalog.spicedLambKofta, // not plant-based
-        MawzoonCatalog.herbedQuinoa,
-        MawzoonCatalog.charredBroccolini,
+      // One wheat carb is enough to take gluten-free off the whole plate.
+      final NutritionalSummary withBulgur = _summaryOf(<IngredientOption>[
+        MawzoonCatalog.koftaSpicedMince,
+        MawzoonCatalog.wholeBulgur,
+        MawzoonCatalog.charredGardenVeggies,
       ]);
-      expect(mixed.dietaryTags, isNot(contains(DietaryTag.plantBased)));
+      expect(withBulgur.dietaryTags, isNot(contains(DietaryTag.glutenFree)));
 
-      final NutritionalSummary vegan = _summaryOf(<IngredientOption>[
-        MawzoonCatalog.smokedHarissaTofu,
-        MawzoonCatalog.sweetPotatoMash,
-        MawzoonCatalog.blisteredGreenBeans,
+      final NutritionalSummary allGlutenFree = _summaryOf(<IngredientOption>[
+        MawzoonCatalog.koftaSpicedMince,
+        MawzoonCatalog.toastedQuinoa,
+        MawzoonCatalog.charredGardenVeggies,
       ]);
-      expect(vegan.dietaryTags, contains(DietaryTag.plantBased));
-      expect(vegan.dietaryTags, contains(DietaryTag.glutenFree));
+      expect(allGlutenFree.dietaryTags, contains(DietaryTag.glutenFree));
+      expect(allGlutenFree.dietaryTags, contains(DietaryTag.dairyFree));
+    });
+
+    test('no complete plate is plant-based, because no protein is', () {
+      final NutritionalSummary plate = _summaryOf(<IngredientOption>[
+        MawzoonCatalog.pulledSlowCookedBeef,
+        MawzoonCatalog.sweetPotatoWedges,
+        MawzoonCatalog.mediterraneanSumacSalad,
+      ]);
+      expect(plate.dietaryTags, isNot(contains(DietaryTag.plantBased)));
+
+      // The carb and fibre compartments on their own still are.
+      final NutritionalSummary sides = _summaryOf(<IngredientOption>[
+        MawzoonCatalog.sweetPotatoWedges,
+        MawzoonCatalog.mediterraneanSumacSalad,
+      ]);
+      expect(sides.dietaryTags, contains(DietaryTag.plantBased));
+    });
+  });
+
+  group('glycemic engine', () {
+    test('an empty plate has no load and no divide-by-zero', () {
+      final NutritionalSummary empty =
+          NutritionalSummary.empty(PortionScale.standardBalance);
+      expect(empty.glycemic.load, 0);
+      expect(empty.glycemic.dampedLoad, 0);
+      expect(empty.glycemic.dampingFraction, 0);
+    });
+
+    test('protein alone contributes no glycemic load', () {
+      final NutritionalSummary meatOnly =
+          _summaryOf(<IngredientOption>[MawzoonCatalog.smokedEntrecote]);
+      expect(meatOnly.glycemic.load, 0);
+      expect(meatOnly.glycemic.balance, GlycemicBalance.steady);
+    });
+
+    test('plate load is the sum of its compartments', () {
+      final NutritionalSummary summary = _summaryOf(<IngredientOption>[
+        MawzoonCatalog.herbGrilledBreast,
+        MawzoonCatalog.airFriedSpicedPotatoes,
+        MawzoonCatalog.charredGardenVeggies,
+      ]);
+      final double parts = PlateSegment.values
+          .map((PlateSegment s) => summary.contributionFor(s).glycemicLoad)
+          .reduce((double a, double b) => a + b);
+      expect(summary.glycemic.load, closeTo(parts, 1e-9));
+    });
+
+    test('a high-GI carb lands the plate above a low-GI one', () {
+      double loadWith(CarbOption carb) => _summaryOf(<IngredientOption>[
+            MawzoonCatalog.herbGrilledBreast,
+            carb,
+            MawzoonCatalog.charredGardenVeggies,
+          ]).glycemic.load;
+
+      expect(
+        loadWith(MawzoonCatalog.airFriedSpicedPotatoes),
+        greaterThan(loadWith(MawzoonCatalog.wholeWheatPasta)),
+      );
+    });
+
+    test('the rest of the plate damps the load, but only so far', () {
+      final NutritionalSummary summary = _summaryOf(<IngredientOption>[
+        MawzoonCatalog.herbGrilledBreast,
+        MawzoonCatalog.airFriedSpicedPotatoes,
+        MawzoonCatalog.charredGardenVeggies,
+      ]);
+      expect(summary.glycemic.dampedLoad, lessThan(summary.glycemic.load));
+      expect(
+        summary.glycemic.dampingFraction,
+        lessThanOrEqualTo(GlycemicProfile.maxDampingFraction + 1e-9),
+      );
+    });
+
+    test('the published load is always kept alongside the adjusted one', () {
+      final NutritionalSummary summary = _summaryOf(<IngredientOption>[
+        MawzoonCatalog.herbGrilledBreast,
+        MawzoonCatalog.steamedBasmati,
+        MawzoonCatalog.charredGardenVeggies,
+      ]);
+      // The figure shown to a guest is the standard metric, not the heuristic.
+      expect(summary.glycemic.displayLoad, summary.glycemic.load.round());
+      expect(summary.glycemic.displayDampedLoad,
+          summary.glycemic.dampedLoad.round(),);
+    });
+
+    test('banding follows the published meal-level thresholds', () {
+      expect(GlycemicProfile.classify(0), GlycemicBalance.steady);
+      expect(GlycemicProfile.classify(10), GlycemicBalance.steady);
+      expect(GlycemicProfile.classify(10.1), GlycemicBalance.balanced);
+      expect(GlycemicProfile.classify(19), GlycemicBalance.balanced);
+      expect(GlycemicProfile.classify(19.1), GlycemicBalance.quick);
+      expect(GlycemicProfile.classify(40), GlycemicBalance.quick);
+    });
+
+    test('load rises with the portion', () {
+      final NutritionalSummary standard = _summaryOf(<IngredientOption>[
+        MawzoonCatalog.herbGrilledBreast,
+        MawzoonCatalog.steamedBasmati,
+        MawzoonCatalog.charredGardenVeggies,
+      ]);
+      final NutritionalSummary athletic = _summaryOf(
+        <IngredientOption>[
+          MawzoonCatalog.herbGrilledBreast,
+          MawzoonCatalog.steamedBasmati,
+          MawzoonCatalog.charredGardenVeggies,
+        ],
+        scale: PortionScale.athleticLoad,
+      );
+      expect(athletic.glycemic.load, greaterThan(standard.glycemic.load));
+    });
+
+    test('every band carries bilingual copy', () {
+      for (final GlycemicBalance b in GlycemicBalance.values) {
+        expect(b.headline.ar.trim(), isNotEmpty);
+        expect(b.headline.en.trim(), isNotEmpty);
+        expect(b.detail.ar.trim(), isNotEmpty);
+        expect(b.detail.en.trim(), isNotEmpty);
+      }
     });
   });
 
@@ -219,9 +362,9 @@ void main() {
     test('nominal progress clamps rather than overshooting', () {
       final NutritionalSummary heavy = _summaryOf(
         <IngredientOption>[
-          MawzoonCatalog.herbGrilledSalmon,
-          MawzoonCatalog.saffronBasmati,
-          MawzoonCatalog.citrusFennelRocket,
+          MawzoonCatalog.smashedLeanBeef,
+          MawzoonCatalog.steamedBasmati,
+          MawzoonCatalog.mediterraneanSumacSalad,
         ],
         scale: PortionScale.athleticLoad,
       );
@@ -237,9 +380,9 @@ void main() {
         () => NutritionalSummary.fromComponents(
           scale: PortionScale.standardBalance,
           components: <PortionedComponent>[
-            MawzoonCatalog.flameSearedChicken
+            MawzoonCatalog.herbGrilledBreast
                 .atScale(PortionScale.standardBalance),
-            MawzoonCatalog.herbGrilledSalmon
+            MawzoonCatalog.smashedLeanBeef
                 .atScale(PortionScale.standardBalance),
           ],
         ),
@@ -252,7 +395,7 @@ void main() {
         () => NutritionalSummary.fromComponents(
           scale: PortionScale.standardBalance,
           components: <PortionedComponent>[
-            MawzoonCatalog.flameSearedChicken.atScale(PortionScale.athleticLoad),
+            MawzoonCatalog.herbGrilledBreast.atScale(PortionScale.athleticLoad),
           ],
         ),
         throwsA(isA<AssertionError>()),

@@ -4,14 +4,18 @@ import 'dietary_metadata.dart';
 import 'ingredient_option.dart';
 import 'plate_segment.dart';
 
-/// The Mawzoon component catalogue: six proteins, six smart carbs, three
-/// vital fibres.
+/// The Mawzoon component catalogue: six proteins, six smart carbs, two vital
+/// fibres.
 ///
 /// Every [MacroProfile] here describes the **cooked, plated, standard**
 /// portion as weighed in the kitchen — not raw mass, and not a per-100 g
 /// reference figure. Energy is never listed: it is derived from these masses
 /// by [MacroProfile.kilocalories], so the menu and the macro capsule cannot
 /// disagree with each other.
+///
+/// Glycemic indices are the published values for the cooking method actually
+/// used — roasted sweet potato is not boiled sweet potato, and basmati is a
+/// genuinely low-GI rice where short-grain white is not.
 ///
 /// Surcharges are in minor currency units (halalas). Zero means the component
 /// is included in the base plate price.
@@ -20,16 +24,69 @@ abstract final class MawzoonCatalog {
   // Compartment one — Protein
   // ---------------------------------------------------------------------
 
-  /// Flame-seared chicken breast, the house anchor.
-  static const ProteinOption flameSearedChicken = ProteinOption(
-    id: 'protein.flame_seared_chicken',
+  /// Smoked entrecôte — the richest cut on the menu.
+  static const ProteinOption smokedEntrecote = ProteinOption(
+    id: 'protein.smoked_entrecote',
+    name: LocalizedText(ar: 'انتركوت مدخّن', en: 'Smoked Entrecôte'),
+    description: LocalizedText(
+      ar: 'شريحة انتركوت مدخّنة على الحطب، براحة عشر دقائق قبل التقطيع.',
+      en: 'Wood-smoked ribeye, rested ten minutes before it meets the knife.',
+    ),
+    basePortionGrams: 140,
+    baseMacros: MacroProfile(
+      proteinGrams: 36,
+      carbohydrateGrams: 0,
+      fatGrams: 18,
+      dietaryFiberGrams: 0,
+      sodiumMilligrams: 360,
+    ),
+    method: CookingMethod.flameSeared,
+    allergens: <Allergen>{},
+    dietaryTags: <DietaryTag>{
+      DietaryTag.glutenFree,
+      DietaryTag.dairyFree,
+      DietaryTag.highProtein,
+      DietaryTag.lowCarb,
+    },
+    surchargeMinorUnits: 800,
+  );
+
+  /// Smashed lean beef — thin patties pressed hard onto the plancha.
+  static const ProteinOption smashedLeanBeef = ProteinOption(
+    id: 'protein.smashed_lean_beef',
+    name: LocalizedText(ar: 'لحم بقري مسحوق قليل الدهن', en: 'Smashed Lean Beef'),
+    description: LocalizedText(
+      ar: 'أقراص رفيعة مضغوطة على الصاج حتى تتكوّن قشرة مقرمشة على الحافة.',
+      en: 'Pressed thin on the plancha until the edges go lacy and crisp.',
+    ),
+    basePortionGrams: 140,
+    baseMacros: MacroProfile(
+      proteinGrams: 38,
+      carbohydrateGrams: 1,
+      fatGrams: 10,
+      dietaryFiberGrams: 0,
+      sodiumMilligrams: 390,
+    ),
+    method: CookingMethod.flameSeared,
+    allergens: <Allergen>{},
+    dietaryTags: <DietaryTag>{
+      DietaryTag.glutenFree,
+      DietaryTag.dairyFree,
+      DietaryTag.highProtein,
+      DietaryTag.lowCarb,
+    },
+  );
+
+  /// Herb-grilled chicken breast — the leanest anchor on the menu.
+  static const ProteinOption herbGrilledBreast = ProteinOption(
+    id: 'protein.herb_grilled_breast',
     name: LocalizedText(
-      ar: 'صدر دجاج مشوي على اللهب',
-      en: 'Flame-Seared Chicken Breast',
+      ar: 'صدر دجاج مشوي بالأعشاب',
+      en: 'Herb Grilled Breast',
     ),
     description: LocalizedText(
-      ar: 'منقوع بالليمون والثوم، مشوي على لهب مباشر حتى يكتسب قشرة ذهبية.',
-      en: 'Lemon and garlic marinated, seared over open flame to a gold crust.',
+      ar: 'صدر دجاج منقوع بالليمون والزعتر والثوم، مشوي حتى يبقى طريًا.',
+      en: 'Lemon, thyme and garlic marinade, grilled just short of firm.',
     ),
     basePortionGrams: 150,
     baseMacros: MacroProfile(
@@ -50,26 +107,26 @@ abstract final class MawzoonCatalog {
     },
   );
 
-  /// Charcoal-charred beef tenderloin.
-  static const ProteinOption charredTenderloin = ProteinOption(
-    id: 'protein.charred_tenderloin',
+  /// Pulled slow-cooked beef — eight hours, then shredded.
+  static const ProteinOption pulledSlowCookedBeef = ProteinOption(
+    id: 'protein.pulled_slow_cooked_beef',
     name: LocalizedText(
-      ar: 'فيليه بقري مشوي على الفحم',
-      en: 'Charred Beef Tenderloin',
+      ar: 'لحم بقري مسحوب مطهو ببطء',
+      en: 'Pulled Slow-Cooked Beef',
     ),
     description: LocalizedText(
-      ar: 'قطع فيليه طرية، مشوية على الفحم مع فلفل أسود مجروش وملح البحر.',
-      en: 'Tender fillet over charcoal, cracked black pepper and sea salt.',
+      ar: 'كتف بقري مطهو ثماني ساعات على حرارة منخفضة حتى يتفكّك بالشوكة.',
+      en: 'Eight hours at low heat until the shoulder gives way to a fork.',
     ),
     basePortionGrams: 140,
     baseMacros: MacroProfile(
-      proteinGrams: 39,
-      carbohydrateGrams: 0,
-      fatGrams: 11,
-      dietaryFiberGrams: 0,
-      sodiumMilligrams: 340,
+      proteinGrams: 37,
+      carbohydrateGrams: 2,
+      fatGrams: 12,
+      dietaryFiberGrams: 0.3,
+      sodiumMilligrams: 430,
     ),
-    method: CookingMethod.flameSeared,
+    method: CookingMethod.slowSimmered,
     allergens: <Allergen>{},
     dietaryTags: <DietaryTag>{
       DietaryTag.glutenFree,
@@ -77,49 +134,16 @@ abstract final class MawzoonCatalog {
       DietaryTag.highProtein,
       DietaryTag.lowCarb,
     },
-    surchargeMinorUnits: 500,
+    surchargeMinorUnits: 300,
   );
 
-  /// Herb-grilled salmon fillet.
-  static const ProteinOption herbGrilledSalmon = ProteinOption(
-    id: 'protein.herb_grilled_salmon',
-    name: LocalizedText(
-      ar: 'سلمون مشوي بالأعشاب',
-      en: 'Herb-Grilled Salmon',
-    ),
+  /// Kofta spiced mince — seven spices, onion and parsley.
+  static const ProteinOption koftaSpicedMince = ProteinOption(
+    id: 'protein.kofta_spiced_mince',
+    name: LocalizedText(ar: 'كفتة مفرومة بالبهارات', en: 'Kofta Spiced Mince'),
     description: LocalizedText(
-      ar: 'فيليه سلمون بقشرة مقرمشة، مع الشبت والبقدونس وزيت الزيتون.',
-      en: 'Crisp-skinned fillet with dill, parsley and cold-pressed olive oil.',
-    ),
-    basePortionGrams: 140,
-    baseMacros: MacroProfile(
-      proteinGrams: 35,
-      carbohydrateGrams: 0,
-      fatGrams: 16,
-      dietaryFiberGrams: 0,
-      sodiumMilligrams: 300,
-    ),
-    method: CookingMethod.flameSeared,
-    allergens: <Allergen>{Allergen.fish},
-    dietaryTags: <DietaryTag>{
-      DietaryTag.glutenFree,
-      DietaryTag.dairyFree,
-      DietaryTag.highProtein,
-      DietaryTag.lowCarb,
-    },
-    surchargeMinorUnits: 700,
-  );
-
-  /// Spiced lamb kofta.
-  static const ProteinOption spicedLambKofta = ProteinOption(
-    id: 'protein.spiced_lamb_kofta',
-    name: LocalizedText(
-      ar: 'كفتة لحم الغنم بالبهارات',
-      en: 'Spiced Lamb Kofta',
-    ),
-    description: LocalizedText(
-      ar: 'لحم غنم مفروم مع البقدونس والبصل وسبع بهارات، مشوي على السيخ.',
-      en: 'Minced lamb with parsley, onion and seven spices, grilled on skewers.',
+      ar: 'لحم مفروم مع البقدونس والبصل وسبع بهارات، مشوي على السيخ.',
+      en: 'Minced with parsley, onion and seven spices, grilled on skewers.',
     ),
     basePortionGrams: 140,
     baseMacros: MacroProfile(
@@ -138,62 +162,30 @@ abstract final class MawzoonCatalog {
       DietaryTag.lowCarb,
       DietaryTag.spiced,
     },
-    surchargeMinorUnits: 300,
   );
 
-  /// Za'atar shrimp.
-  static const ProteinOption zaatarShrimp = ProteinOption(
-    id: 'protein.zaatar_shrimp',
-    name: LocalizedText(ar: 'روبيان بالزعتر', en: "Za'atar Shrimp"),
+  /// Marinated chicken thighs — the most forgiving cut, and the juiciest.
+  static const ProteinOption marinatedThighs = ProteinOption(
+    id: 'protein.marinated_thighs',
+    name: LocalizedText(ar: 'أفخاذ دجاج متبّلة', en: 'Marinated Thighs'),
     description: LocalizedText(
-      ar: 'روبيان جامبو محمّر سريعًا بالزعتر البري والليمون وزيت الزيتون.',
-      en: 'Jumbo shrimp flashed hot with wild thyme, lemon and olive oil.',
+      ar: 'أفخاذ منزوعة العظم منقوعة ليلة كاملة بالسماق والثوم والليمون.',
+      en: 'Boned thighs left overnight in sumac, garlic and lemon.',
     ),
     basePortionGrams: 150,
     baseMacros: MacroProfile(
-      proteinGrams: 33,
-      carbohydrateGrams: 3,
-      fatGrams: 8,
-      dietaryFiberGrams: 0.5,
-      sodiumMilligrams: 460,
+      proteinGrams: 36,
+      carbohydrateGrams: 1.5,
+      fatGrams: 12,
+      dietaryFiberGrams: 0,
+      sodiumMilligrams: 410,
     ),
-    method: CookingMethod.blistered,
-    allergens: <Allergen>{Allergen.shellfish, Allergen.sesame},
+    method: CookingMethod.flameSeared,
+    allergens: <Allergen>{},
     dietaryTags: <DietaryTag>{
       DietaryTag.glutenFree,
       DietaryTag.dairyFree,
       DietaryTag.highProtein,
-      DietaryTag.lowCarb,
-      DietaryTag.spiced,
-    },
-    surchargeMinorUnits: 600,
-  );
-
-  /// Smoked harissa tofu — the plant-based anchor.
-  static const ProteinOption smokedHarissaTofu = ProteinOption(
-    id: 'protein.smoked_harissa_tofu',
-    name: LocalizedText(
-      ar: 'توفو مدخن بالهريسة',
-      en: 'Smoked Harissa Tofu',
-    ),
-    description: LocalizedText(
-      ar: 'توفو صلب مدخن، مغلّف بالهريسة المنزلية ومشوي حتى الحواف المقرمشة.',
-      en: 'Firm smoked tofu lacquered in house harissa, roasted to crisp edges.',
-    ),
-    basePortionGrams: 160,
-    baseMacros: MacroProfile(
-      proteinGrams: 27,
-      carbohydrateGrams: 7,
-      fatGrams: 13,
-      dietaryFiberGrams: 2.2,
-      sodiumMilligrams: 390,
-    ),
-    method: CookingMethod.ovenRoasted,
-    allergens: <Allergen>{Allergen.soy},
-    dietaryTags: <DietaryTag>{
-      DietaryTag.plantBased,
-      DietaryTag.glutenFree,
-      DietaryTag.dairyFree,
       DietaryTag.lowCarb,
       DietaryTag.spiced,
     },
@@ -230,75 +222,53 @@ abstract final class MawzoonCatalog {
       DietaryTag.dairyFree,
       DietaryTag.spiced,
     },
+    glycemicIndex: 75,
   );
 
-  /// Saffron basmati rice.
-  static const CarbOption saffronBasmati = CarbOption(
-    id: 'carb.saffron_basmati',
-    name: LocalizedText(ar: 'أرز بسمتي بالزعفران', en: 'Saffron Basmati'),
+  /// Steamed basmati — genuinely low-GI, unlike short-grain white rice.
+  static const CarbOption steamedBasmati = CarbOption(
+    id: 'carb.steamed_basmati',
+    name: LocalizedText(ar: 'أرز بسمتي مطهو بالبخار', en: 'Steamed Basmati'),
     description: LocalizedText(
-      ar: 'أرز بسمتي طويل الحبة، منقوع بالزعفران والهيل حتى تنفصل حبّاته.',
-      en: 'Long-grain basmati steeped with saffron and cardamom, grain-separate.',
+      ar: 'أرز بسمتي طويل الحبة مطهو بالبخار حتى تنفصل حبّاته.',
+      en: 'Long-grain basmati steamed until every grain stands apart.',
     ),
     basePortionGrams: 150,
     baseMacros: MacroProfile(
       proteinGrams: 4,
       carbohydrateGrams: 42,
-      fatGrams: 2,
+      fatGrams: 0.6,
       dietaryFiberGrams: 1.2,
-      sodiumMilligrams: 210,
+      sodiumMilligrams: 190,
     ),
-    method: CookingMethod.slowSimmered,
+    method: CookingMethod.steamed,
     allergens: <Allergen>{},
     dietaryTags: <DietaryTag>{
       DietaryTag.plantBased,
       DietaryTag.glutenFree,
       DietaryTag.dairyFree,
     },
+    glycemicIndex: 52,
   );
 
-  /// Freekeh pilaf — smoked green wheat.
-  static const CarbOption freekehPilaf = CarbOption(
-    id: 'carb.freekeh_pilaf',
-    name: LocalizedText(ar: 'فريكة مطهوة بالخضار', en: 'Freekeh Pilaf'),
-    description: LocalizedText(
-      ar: 'فريكة مدخنة مطهوة على مرق الخضار مع الكرفس والجزر.',
-      en: 'Smoked green wheat simmered in vegetable stock with celery and carrot.',
-    ),
-    basePortionGrams: 150,
-    baseMacros: MacroProfile(
-      proteinGrams: 7,
-      carbohydrateGrams: 36,
-      fatGrams: 3,
-      dietaryFiberGrams: 6.5,
-      sodiumMilligrams: 320,
-    ),
-    method: CookingMethod.slowSimmered,
-    allergens: <Allergen>{Allergen.gluten},
-    dietaryTags: <DietaryTag>{
-      DietaryTag.plantBased,
-      DietaryTag.dairyFree,
-    },
-  );
-
-  /// Sweet potato mash.
-  static const CarbOption sweetPotatoMash = CarbOption(
-    id: 'carb.sweet_potato_mash',
+  /// Sweet potato wedges, oven-roasted.
+  static const CarbOption sweetPotatoWedges = CarbOption(
+    id: 'carb.sweet_potato_wedges',
     name: LocalizedText(
-      ar: 'بطاطا حلوة مهروسة',
-      en: 'Sweet Potato Mash',
+      ar: 'أصابع البطاطا الحلوة',
+      en: 'Sweet Potato Wedges',
     ),
     description: LocalizedText(
-      ar: 'بطاطا حلوة محمّصة ومهروسة مع زيت الزيتون وقليل من القرفة.',
-      en: 'Roasted and whipped with olive oil and a whisper of cinnamon.',
+      ar: 'أصابع بطاطا حلوة محمّصة بالفرن حتى تتكرمل حوافها.',
+      en: 'Oven-roasted until the edges caramelise and catch.',
     ),
-    basePortionGrams: 160,
+    basePortionGrams: 170,
     baseMacros: MacroProfile(
-      proteinGrams: 3,
-      carbohydrateGrams: 32,
-      fatGrams: 2.5,
-      dietaryFiberGrams: 5,
-      sodiumMilligrams: 190,
+      proteinGrams: 3.2,
+      carbohydrateGrams: 34,
+      fatGrams: 3.5,
+      dietaryFiberGrams: 5.3,
+      sodiumMilligrams: 200,
     ),
     method: CookingMethod.ovenRoasted,
     allergens: <Allergen>{},
@@ -307,22 +277,23 @@ abstract final class MawzoonCatalog {
       DietaryTag.glutenFree,
       DietaryTag.dairyFree,
     },
+    glycemicIndex: 63,
   );
 
-  /// Pearl couscous (maftoul).
-  static const CarbOption pearlCouscous = CarbOption(
-    id: 'carb.pearl_couscous',
-    name: LocalizedText(ar: 'مفتول لؤلؤي', en: 'Pearl Couscous'),
+  /// Whole bulgur — the highest-fibre carb on the menu.
+  static const CarbOption wholeBulgur = CarbOption(
+    id: 'carb.whole_bulgur',
+    name: LocalizedText(ar: 'برغل أسمر', en: 'Whole Bulgur'),
     description: LocalizedText(
-      ar: 'حبات مفتول محمّصة، مطهوة مع البصل المكرمل والكمون.',
-      en: 'Toasted pearls simmered with caramelised onion and cumin.',
+      ar: 'برغل خشن مطهو على مرق الخضار مع البصل المكرمل.',
+      en: 'Coarse bulgur simmered in vegetable stock with caramelised onion.',
     ),
-    basePortionGrams: 140,
+    basePortionGrams: 150,
     baseMacros: MacroProfile(
       proteinGrams: 6,
-      carbohydrateGrams: 38,
+      carbohydrateGrams: 34,
       fatGrams: 1.5,
-      dietaryFiberGrams: 3,
+      dietaryFiberGrams: 7,
       sodiumMilligrams: 280,
     ),
     method: CookingMethod.slowSimmered,
@@ -331,15 +302,16 @@ abstract final class MawzoonCatalog {
       DietaryTag.plantBased,
       DietaryTag.dairyFree,
     },
+    glycemicIndex: 48,
   );
 
-  /// Herbed quinoa.
-  static const CarbOption herbedQuinoa = CarbOption(
-    id: 'carb.herbed_quinoa',
-    name: LocalizedText(ar: 'كينوا بالأعشاب', en: 'Herbed Quinoa'),
+  /// Toasted quinoa — toasted dry before it ever sees liquid.
+  static const CarbOption toastedQuinoa = CarbOption(
+    id: 'carb.toasted_quinoa',
+    name: LocalizedText(ar: 'كينوا محمّصة', en: 'Toasted Quinoa'),
     description: LocalizedText(
-      ar: 'كينوا ثلاثية الألوان مع النعناع والبقدونس وعصير الليمون.',
-      en: 'Tri-colour quinoa tossed with mint, parsley and lemon juice.',
+      ar: 'كينوا محمّصة على نار جافة قبل الطهي، مع النعناع والليمون.',
+      en: 'Dry-toasted before cooking, finished with mint and lemon.',
     ),
     basePortionGrams: 150,
     baseMacros: MacroProfile(
@@ -356,29 +328,55 @@ abstract final class MawzoonCatalog {
       DietaryTag.glutenFree,
       DietaryTag.dairyFree,
     },
+    glycemicIndex: 53,
+  );
+
+  /// Whole wheat pasta — the lowest-GI carb on the menu.
+  static const CarbOption wholeWheatPasta = CarbOption(
+    id: 'carb.whole_wheat_pasta',
+    name: LocalizedText(ar: 'معكرونة القمح الكامل', en: 'Whole Wheat Pasta'),
+    description: LocalizedText(
+      ar: 'معكرونة قمح كامل مسلوقة حتى الطراوة المتماسكة، بزيت زيتون وثوم.',
+      en: 'Whole wheat, held at al dente, dressed in olive oil and garlic.',
+    ),
+    basePortionGrams: 150,
+    baseMacros: MacroProfile(
+      proteinGrams: 8,
+      carbohydrateGrams: 38,
+      fatGrams: 1.6,
+      dietaryFiberGrams: 5.5,
+      sodiumMilligrams: 210,
+    ),
+    method: CookingMethod.slowSimmered,
+    allergens: <Allergen>{Allergen.gluten},
+    dietaryTags: <DietaryTag>{
+      DietaryTag.plantBased,
+      DietaryTag.dairyFree,
+    },
+    glycemicIndex: 42,
   );
 
   // ---------------------------------------------------------------------
   // Compartment three — Vital Fiber
   // ---------------------------------------------------------------------
 
-  /// Charred tenderstem broccolini.
-  static const FiberOption charredBroccolini = FiberOption(
-    id: 'fiber.charred_broccolini',
+  /// Charred garden vegetables.
+  static const FiberOption charredGardenVeggies = FiberOption(
+    id: 'fiber.charred_garden_veggies',
     name: LocalizedText(
-      ar: 'بروكليني مشوي بالليمون',
-      en: 'Charred Broccolini',
+      ar: 'خضار الحديقة المشوية',
+      en: 'Charred Garden Veggies',
     ),
     description: LocalizedText(
-      ar: 'سيقان بروكليني مشوية حتى التفحّم الخفيف، مع قشر الليمون والثوم.',
-      en: 'Stems blistered to a light char with lemon zest and garlic.',
+      ar: 'كوسا وفلفل وباذنجان وبصل أحمر، مشوية حتى التفحّم الخفيف.',
+      en: 'Courgette, pepper, aubergine and red onion, grilled to a light char.',
     ),
-    basePortionGrams: 110,
+    basePortionGrams: 130,
     baseMacros: MacroProfile(
-      proteinGrams: 4,
-      carbohydrateGrams: 8,
-      fatGrams: 3.5,
-      dietaryFiberGrams: 4,
+      proteinGrams: 3.5,
+      carbohydrateGrams: 11,
+      fatGrams: 4.5,
+      dietaryFiberGrams: 4.5,
       sodiumMilligrams: 150,
     ),
     method: CookingMethod.blistered,
@@ -389,26 +387,27 @@ abstract final class MawzoonCatalog {
       DietaryTag.dairyFree,
       DietaryTag.lowCarb,
     },
+    glycemicIndex: 15,
   );
 
-  /// Citrus fennel and rocket salad.
-  static const FiberOption citrusFennelRocket = FiberOption(
-    id: 'fiber.citrus_fennel_rocket',
+  /// Mediterranean sumac salad.
+  static const FiberOption mediterraneanSumacSalad = FiberOption(
+    id: 'fiber.mediterranean_sumac_salad',
     name: LocalizedText(
-      ar: 'سلطة الشمر والجرجير بالحمضيات',
-      en: 'Citrus Fennel & Rocket',
+      ar: 'سلطة السماق المتوسطية',
+      en: 'Mediterranean Sumac Salad',
     ),
     description: LocalizedText(
-      ar: 'شرائح شمر رفيعة مع الجرجير وشرائح البرتقال وصلصة الحمضيات.',
-      en: 'Shaved fennel, peppery rocket, orange segments, citrus dressing.',
+      ar: 'خيار وطماطم وبصل وبقدونس مع السماق وعصير الليمون وزيت الزيتون.',
+      en: 'Cucumber, tomato, onion and parsley with sumac, lemon and olive oil.',
     ),
-    basePortionGrams: 120,
+    basePortionGrams: 130,
     baseMacros: MacroProfile(
-      proteinGrams: 2,
+      proteinGrams: 2.5,
       carbohydrateGrams: 9,
-      fatGrams: 5,
-      dietaryFiberGrams: 3.5,
-      sodiumMilligrams: 140,
+      fatGrams: 5.5,
+      dietaryFiberGrams: 3.2,
+      sodiumMilligrams: 170,
     ),
     method: CookingMethod.freshDressed,
     allergens: <Allergen>{},
@@ -417,36 +416,9 @@ abstract final class MawzoonCatalog {
       DietaryTag.glutenFree,
       DietaryTag.dairyFree,
       DietaryTag.lowCarb,
+      DietaryTag.spiced,
     },
-  );
-
-  /// Blistered green beans with toasted almond.
-  static const FiberOption blisteredGreenBeans = FiberOption(
-    id: 'fiber.blistered_green_beans',
-    name: LocalizedText(
-      ar: 'فاصولياء خضراء باللوز',
-      en: 'Blistered Green Beans',
-    ),
-    description: LocalizedText(
-      ar: 'فاصولياء خضراء محمّرة على نار عالية مع رقائق اللوز المحمّص.',
-      en: 'Snapped beans seared hard, finished with toasted almond flakes.',
-    ),
-    basePortionGrams: 110,
-    baseMacros: MacroProfile(
-      proteinGrams: 3.5,
-      carbohydrateGrams: 9,
-      fatGrams: 4.5,
-      dietaryFiberGrams: 4.2,
-      sodiumMilligrams: 160,
-    ),
-    method: CookingMethod.blistered,
-    allergens: <Allergen>{Allergen.treeNuts},
-    dietaryTags: <DietaryTag>{
-      DietaryTag.plantBased,
-      DietaryTag.glutenFree,
-      DietaryTag.dairyFree,
-      DietaryTag.lowCarb,
-    },
+    glycemicIndex: 15,
   );
 
   // ---------------------------------------------------------------------
@@ -455,29 +427,28 @@ abstract final class MawzoonCatalog {
 
   /// All six protein options, in carousel order.
   static const List<ProteinOption> proteins = <ProteinOption>[
-    flameSearedChicken,
-    charredTenderloin,
-    herbGrilledSalmon,
-    spicedLambKofta,
-    zaatarShrimp,
-    smokedHarissaTofu,
+    smokedEntrecote,
+    smashedLeanBeef,
+    herbGrilledBreast,
+    pulledSlowCookedBeef,
+    koftaSpicedMince,
+    marinatedThighs,
   ];
 
   /// All six smart-carb options, in carousel order.
   static const List<CarbOption> carbs = <CarbOption>[
     airFriedSpicedPotatoes,
-    saffronBasmati,
-    freekehPilaf,
-    sweetPotatoMash,
-    pearlCouscous,
-    herbedQuinoa,
+    steamedBasmati,
+    sweetPotatoWedges,
+    wholeBulgur,
+    toastedQuinoa,
+    wholeWheatPasta,
   ];
 
-  /// All three vital-fibre options, in carousel order.
+  /// Both vital-fibre options, in carousel order.
   static const List<FiberOption> fibers = <FiberOption>[
-    charredBroccolini,
-    citrusFennelRocket,
-    blisteredGreenBeans,
+    charredGardenVeggies,
+    mediterraneanSumacSalad,
   ];
 
   /// Every component across all three compartments.

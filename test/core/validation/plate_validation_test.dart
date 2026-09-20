@@ -5,57 +5,60 @@ import 'package:mawzoon/core/menu/mawzoon_catalog.dart';
 import 'package:mawzoon/core/menu/plate_segment.dart';
 import 'package:mawzoon/core/validation/plate_validation.dart';
 
-const List<IngredientOption> _shellfishPlate = <IngredientOption>[
-  MawzoonCatalog.zaatarShrimp,
-  MawzoonCatalog.herbedQuinoa,
-  MawzoonCatalog.citrusFennelRocket,
+/// Gluten is the only allergen this menu declares, and it comes from the two
+/// wheat carbs. A coeliac guest is the concrete case the screening exists for.
+const List<IngredientOption> _glutenPlate = <IngredientOption>[
+  MawzoonCatalog.herbGrilledBreast,
+  MawzoonCatalog.wholeBulgur,
+  MawzoonCatalog.charredGardenVeggies,
 ];
 
-const List<IngredientOption> _safePlate = <IngredientOption>[
-  MawzoonCatalog.flameSearedChicken,
-  MawzoonCatalog.sweetPotatoMash,
-  MawzoonCatalog.charredBroccolini,
+const List<IngredientOption> _glutenFreePlate = <IngredientOption>[
+  MawzoonCatalog.herbGrilledBreast,
+  MawzoonCatalog.toastedQuinoa,
+  MawzoonCatalog.charredGardenVeggies,
 ];
 
 void main() {
   group('unrestricted guests', () {
-    test('never see an advisory', () {
-      for (final IngredientOption protein in MawzoonCatalog.proteins) {
-        final List<PlateAdvisory> advisories = PlateValidator.validate(
-          components: <IngredientOption>[
+    test('never see an advisory, whatever the plate', () {
+      for (final ProteinOption protein in MawzoonCatalog.proteins) {
+        for (final CarbOption carb in MawzoonCatalog.carbs) {
+          final List<PlateAdvisory> advisories =
+              PlateValidator.validate(components: <IngredientOption>[
             protein,
-            MawzoonCatalog.freekehPilaf,
-            MawzoonCatalog.blisteredGreenBeans,
-          ],
-        );
-        expect(advisories, isEmpty, reason: protein.id);
+            carb,
+            MawzoonCatalog.mediterraneanSumacSalad,
+          ],);
+          expect(advisories, isEmpty, reason: '${protein.id} + ${carb.id}');
+        }
       }
     });
 
     test('can be served anything on the menu', () {
-      expect(PlateValidator.isServable(components: _shellfishPlate), isTrue);
+      expect(PlateValidator.isServable(components: _glutenPlate), isTrue);
     });
   });
 
   group('allergen screening is a hard stop', () {
-    const GuestDietaryProfile shellfishAllergy = GuestDietaryProfile(
-      avoidedAllergens: <Allergen>{Allergen.shellfish},
+    const GuestDietaryProfile coeliac = GuestDietaryProfile(
+      avoidedAllergens: <Allergen>{Allergen.gluten},
     );
 
     test('blocks a plate carrying a declared allergen', () {
       final List<PlateAdvisory> advisories = PlateValidator.validate(
-        components: _shellfishPlate,
-        profile: shellfishAllergy,
+        components: _glutenPlate,
+        profile: coeliac,
       );
 
       expect(advisories, hasLength(1));
       expect(advisories.single.isBlocking, isTrue);
-      expect(advisories.single.allergen, Allergen.shellfish);
-      expect(advisories.single.segment, PlateSegment.protein);
+      expect(advisories.single.allergen, Allergen.gluten);
+      expect(advisories.single.segment, PlateSegment.smartCarb);
       expect(
         PlateValidator.isServable(
-          components: _shellfishPlate,
-          profile: shellfishAllergy,
+          components: _glutenPlate,
+          profile: coeliac,
         ),
         isFalse,
       );
@@ -63,63 +66,83 @@ void main() {
 
     test('names the offending dish in both languages', () {
       final PlateAdvisory advisory = PlateValidator.validate(
-        components: _shellfishPlate,
-        profile: shellfishAllergy,
+        components: _glutenPlate,
+        profile: coeliac,
       ).single;
 
-      expect(advisory.message.ar, contains(MawzoonCatalog.zaatarShrimp.name.ar));
-      expect(advisory.message.en, contains(MawzoonCatalog.zaatarShrimp.name.en));
-      expect(advisory.message.ar, contains(Allergen.shellfish.label.ar));
-      expect(advisory.message.en, contains(Allergen.shellfish.label.en));
+      expect(advisory.message.ar, contains(MawzoonCatalog.wholeBulgur.name.ar));
+      expect(advisory.message.en, contains(MawzoonCatalog.wholeBulgur.name.en));
+      expect(advisory.message.ar, contains(Allergen.gluten.label.ar));
+      expect(advisory.message.en, contains(Allergen.gluten.label.en));
     });
 
     test('clears a plate that avoids the allergen', () {
       expect(
         PlateValidator.validate(
-          components: _safePlate,
-          profile: shellfishAllergy,
+          components: _glutenFreePlate,
+          profile: coeliac,
         ),
         isEmpty,
       );
     });
 
-    test('raises one advisory per offending component', () {
-      const GuestDietaryProfile multiple = GuestDietaryProfile(
-        avoidedAllergens: <Allergen>{Allergen.gluten, Allergen.treeNuts},
+    test('four of the six carbs remain open to a coeliac guest', () {
+      final Iterable<CarbOption> safe = MawzoonCatalog.carbs.where(
+        (CarbOption c) => PlateValidator.isServable(
+          components: <IngredientOption>[c],
+          profile: coeliac,
+        ),
       );
+      expect(safe, hasLength(4));
+      expect(safe, isNot(contains(MawzoonCatalog.wholeBulgur)));
+      expect(safe, isNot(contains(MawzoonCatalog.wholeWheatPasta)));
+    });
+
+    test('raises one advisory per offending component', () {
+      // Two wheat carbs cannot both be on one plate, so this exercises the
+      // per-component loop directly rather than through a buildable plate.
       final List<PlateAdvisory> advisories = PlateValidator.validate(
         components: <IngredientOption>[
-          MawzoonCatalog.flameSearedChicken,
-          MawzoonCatalog.freekehPilaf, // gluten
-          MawzoonCatalog.blisteredGreenBeans, // tree nuts
+          MawzoonCatalog.wholeBulgur,
+          MawzoonCatalog.wholeWheatPasta,
         ],
-        profile: multiple,
+        profile: coeliac,
       );
 
       expect(advisories, hasLength(2));
       expect(advisories.every((PlateAdvisory a) => a.isBlocking), isTrue);
     });
+
+    test('an allergen the guest has not declared does not block', () {
+      const GuestDietaryProfile nutAllergy = GuestDietaryProfile(
+        avoidedAllergens: <Allergen>{Allergen.treeNuts},
+      );
+      expect(
+        PlateValidator.isServable(components: _glutenPlate, profile: nutAllergy),
+        isTrue,
+      );
+    });
   });
 
   group('dietary preferences are informational only', () {
-    const GuestDietaryProfile vegan = GuestDietaryProfile(
-      preferredTags: <DietaryTag>{DietaryTag.plantBased},
+    const GuestDietaryProfile prefersGlutenFree = GuestDietaryProfile(
+      preferredTags: <DietaryTag>{DietaryTag.glutenFree},
     );
 
     test('a preference never blocks checkout', () {
       final List<PlateAdvisory> advisories = PlateValidator.validate(
-        components: _safePlate,
-        profile: vegan,
+        components: _glutenPlate,
+        profile: prefersGlutenFree,
       );
 
       expect(advisories, hasLength(1));
       expect(advisories.single.isBlocking, isFalse);
+      expect(advisories.single.severity, PlateAdvisorySeverity.informational);
       expect(
-        advisories.single.severity,
-        PlateAdvisorySeverity.informational,
-      );
-      expect(
-        PlateValidator.isServable(components: _safePlate, profile: vegan),
+        PlateValidator.isServable(
+          components: _glutenPlate,
+          profile: prefersGlutenFree,
+        ),
         isTrue,
       );
     });
@@ -127,38 +150,35 @@ void main() {
     test('a fully compliant plate raises nothing', () {
       expect(
         PlateValidator.validate(
-          components: <IngredientOption>[
-            MawzoonCatalog.smokedHarissaTofu,
-            MawzoonCatalog.sweetPotatoMash,
-            MawzoonCatalog.blisteredGreenBeans,
-          ],
-          profile: vegan,
+          components: _glutenFreePlate,
+          profile: prefersGlutenFree,
         ),
         isEmpty,
       );
     });
 
     test('the note names every non-compliant component, in both languages', () {
+      const GuestDietaryProfile prefersPlantBased = GuestDietaryProfile(
+        preferredTags: <DietaryTag>{DietaryTag.plantBased},
+      );
       final PlateAdvisory advisory = PlateValidator.validate(
-        components: <IngredientOption>[
-          MawzoonCatalog.flameSearedChicken, // not plant-based
-          MawzoonCatalog.saffronBasmati, // plant-based
-          MawzoonCatalog.charredBroccolini, // plant-based
-        ],
-        profile: vegan,
+        components: _glutenFreePlate,
+        profile: prefersPlantBased,
       ).single;
 
+      // No protein on this menu is plant-based, so the breast is the only
+      // component that can be named.
       expect(
         advisory.message.en,
-        contains(MawzoonCatalog.flameSearedChicken.name.en),
+        contains(MawzoonCatalog.herbGrilledBreast.name.en),
       );
       expect(
         advisory.message.ar,
-        contains(MawzoonCatalog.flameSearedChicken.name.ar),
+        contains(MawzoonCatalog.herbGrilledBreast.name.ar),
       );
       expect(
         advisory.message.en,
-        isNot(contains(MawzoonCatalog.saffronBasmati.name.en)),
+        isNot(contains(MawzoonCatalog.toastedQuinoa.name.en)),
       );
     });
   });
@@ -166,15 +186,11 @@ void main() {
   group('ordering', () {
     test('blocking advisories come first', () {
       const GuestDietaryProfile profile = GuestDietaryProfile(
-        avoidedAllergens: <Allergen>{Allergen.treeNuts},
+        avoidedAllergens: <Allergen>{Allergen.gluten},
         preferredTags: <DietaryTag>{DietaryTag.plantBased},
       );
       final List<PlateAdvisory> advisories = PlateValidator.validate(
-        components: <IngredientOption>[
-          MawzoonCatalog.flameSearedChicken,
-          MawzoonCatalog.sweetPotatoMash,
-          MawzoonCatalog.blisteredGreenBeans,
-        ],
+        components: _glutenPlate,
         profile: profile,
       );
 

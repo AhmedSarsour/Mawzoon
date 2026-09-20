@@ -14,7 +14,9 @@ Every meal is three compartments on one elongated platter:
 |---|---|---|
 | Protein | البروتين | 6 |
 | Smart Carb | الكربوهيدرات الذكية | 6 |
-| Vital Fiber | الألياف الحيوية | 3 |
+| Vital Fiber | الألياف الحيوية | 2 |
+
+72 buildable plates, every one of them costed and counted.
 
 That structure is the product's whole mental model. It orders the physical
 tray, the three arcs of the macro ring, the three steps of the builder and the
@@ -52,6 +54,13 @@ Every one of the six signature plates is asserted by test to land inside its
 house energy band at *both* portion scales. A chef's plate that drifts out of
 band fails the build instead of reaching a guest.
 
+Glycemic load is computed the published way — each component's glycemic index
+weighted by the digestible carbohydrate it actually contributes — and banded
+against the published meal-level thresholds rather than thresholds fitted to
+this menu. A plate's protein, fat and fibre do blunt its glycemic response, so
+a bounded adjustment is reported too, clearly labelled as the coarse
+directional heuristic it is, with the published figure always kept beside it.
+
 ## Status
 
 | Layer | State |
@@ -59,10 +68,12 @@ band fails the build instead of reaching a guest.
 | `core/` — nutrition engine, catalogue, validation | done, tested |
 | `features/plate_builder/` — sealed state machine, controller | done, tested |
 | `features/curated_menu/` — signature plates | done, tested |
+| `core/` — glycemic engine | done, tested |
+| `ui_primitives/` — design tokens, AppTheme, MawzoonText | done, tested |
 | `ui_primitives/` — tri-partition canvas, macro capsule | next |
 | `features/cart_checkout/` | not started |
 
-141 tests, `flutter analyze` clean.
+319 tests, `flutter analyze` clean.
 
 ## Getting started
 

@@ -8,130 +8,134 @@ import '../domain/signature_plate.dart';
 /// both portion scales — a signature plate that drifts outside its band fails
 /// the build rather than reaching a guest. That is the whole point of the
 /// curated track: the guest delegates the arithmetic and it is still right.
+///
+/// Between them the six use every protein, every carb and both fibres once,
+/// so the curated row is a complete tour of the menu rather than six
+/// variations on the same three components.
 abstract final class SignaturePlateCatalog {
   static const int _basePriceMinorUnits = 4900;
 
-  /// Chicken, air-fried potatoes, charred broccolini. The house default.
+  /// Chicken breast, air-fried potatoes, charred veg. The house default.
   static const SignaturePlate emberStandard = SignaturePlate(
     id: 'signature.ember_standard',
     name: LocalizedText(ar: 'جمرة التوازن', en: 'The Ember Standard'),
     tagline: LocalizedText(
-      ar: 'دجاج اللهب، بطاطس مقرمشة، بروكليني',
-      en: 'Flame chicken, crisp potato, broccolini',
+      ar: 'صدر مشوي، بطاطس مقرمشة، خضار',
+      en: 'Grilled breast, crisp potato, charred veg',
     ),
     chefNote: LocalizedText(
       ar: 'الطبق الذي بنينا عليه المطعم: قشرة مقرمشة، لحم طري، ولا شيء مقلي.',
       en: 'The plate we built the restaurant on: crisp crust, tender meat, '
           'nothing deep-fried.',
     ),
-    protein: MawzoonCatalog.flameSearedChicken,
+    protein: MawzoonCatalog.herbGrilledBreast,
     carb: MawzoonCatalog.airFriedSpicedPotatoes,
-    fiber: MawzoonCatalog.charredBroccolini,
+    fiber: MawzoonCatalog.charredGardenVeggies,
     basePriceMinorUnits: _basePriceMinorUnits,
   );
 
-  /// Salmon, saffron basmati, broccolini.
-  static const SignaturePlate coastalSaffron = SignaturePlate(
-    id: 'signature.coastal_saffron',
-    name: LocalizedText(ar: 'زعفران الساحل', en: 'Coastal Saffron'),
+  /// Smoked entrecôte, whole bulgur, sumac salad.
+  static const SignaturePlate smokehouseBulgur = SignaturePlate(
+    id: 'signature.smokehouse_bulgur',
+    name: LocalizedText(ar: 'دخان وبرغل', en: 'Smokehouse & Bulgur'),
     tagline: LocalizedText(
-      ar: 'سلمون بالأعشاب، بسمتي بالزعفران',
-      en: 'Herbed salmon, saffron basmati',
+      ar: 'انتركوت مدخّن، برغل أسمر، سماق',
+      en: 'Smoked entrecôte, whole bulgur, sumac',
     ),
     chefNote: LocalizedText(
-      ar: 'دهون السلمون الصحية مع أرز عطري — الطبق الأكثر طلبًا في المساء.',
-      en: "Salmon's good fats against aromatic rice — our most ordered plate "
-          'after sunset.',
+      ar: 'أغنى قطعة على القائمة، يوازنها البرغل وحموضة السماق.',
+      en: 'The richest cut on the menu, held in check by bulgur and the '
+          'sourness of sumac.',
     ),
-    protein: MawzoonCatalog.herbGrilledSalmon,
-    carb: MawzoonCatalog.saffronBasmati,
-    fiber: MawzoonCatalog.charredBroccolini,
+    protein: MawzoonCatalog.smokedEntrecote,
+    carb: MawzoonCatalog.wholeBulgur,
+    fiber: MawzoonCatalog.mediterraneanSumacSalad,
     basePriceMinorUnits: _basePriceMinorUnits,
   );
 
-  /// Beef tenderloin, freekeh, green beans.
-  static const SignaturePlate charcoalFreekeh = SignaturePlate(
-    id: 'signature.charcoal_freekeh',
-    name: LocalizedText(ar: 'فحم وفريكة', en: 'Charcoal & Freekeh'),
+  /// Smashed lean beef, steamed basmati, charred veg.
+  static const SignaturePlate smashAndSteam = SignaturePlate(
+    id: 'signature.smash_and_steam',
+    name: LocalizedText(ar: 'مسحوق وبخار', en: 'Smash & Steam'),
     tagline: LocalizedText(
-      ar: 'فيليه على الفحم، فريكة مدخنة',
-      en: 'Charcoal fillet, smoked freekeh',
+      ar: 'لحم مسحوق، بسمتي، خضار مشوية',
+      en: 'Smashed beef, basmati, charred veg',
     ),
     chefNote: LocalizedText(
-      ar: 'دخان على دخان: الفحم تحت اللحم، والفريكة المحروقة تحت كل شيء.',
-      en: 'Smoke on smoke: charcoal under the beef, scorched green wheat '
-          'under all of it.',
+      ar: 'حواف مقرمشة من الصاج مع أرز خفيف — أبسط طبق وأكثره طلبًا ظهرًا.',
+      en: 'Lacy plancha edges against light rice — the simplest plate here, '
+          'and the one that sells out at lunch.',
     ),
-    protein: MawzoonCatalog.charredTenderloin,
-    carb: MawzoonCatalog.freekehPilaf,
-    fiber: MawzoonCatalog.blisteredGreenBeans,
+    protein: MawzoonCatalog.smashedLeanBeef,
+    carb: MawzoonCatalog.steamedBasmati,
+    fiber: MawzoonCatalog.charredGardenVeggies,
     basePriceMinorUnits: _basePriceMinorUnits,
   );
 
-  /// Lamb kofta, pearl couscous, citrus fennel.
-  static const SignaturePlate levantineKofta = SignaturePlate(
-    id: 'signature.levantine_kofta',
-    name: LocalizedText(ar: 'كفتة شامية', en: 'Levantine Kofta'),
+  /// Pulled slow-cooked beef, sweet potato wedges, sumac salad.
+  static const SignaturePlate slowAndSweet = SignaturePlate(
+    id: 'signature.slow_and_sweet',
+    name: LocalizedText(ar: 'بطء وحلاوة', en: 'Slow & Sweet'),
     tagline: LocalizedText(
-      ar: 'كفتة بالبهارات، مفتول، شمر بالحمضيات',
-      en: 'Spiced kofta, maftoul, citrus fennel',
+      ar: 'لحم مسحوب، بطاطا حلوة، سماق',
+      en: 'Pulled beef, sweet potato, sumac',
     ),
     chefNote: LocalizedText(
-      ar: 'السبع بهارات مع حموضة البرتقال — التوازن هنا في الطعم قبل الأرقام.',
-      en: 'Seven spices cut by orange acidity — here the balance is on the '
-          'palate before it is in the numbers.',
+      ar: 'ثماني ساعات من الطهي مقابل حلاوة البطاطا المكرملة.',
+      en: 'Eight hours of slow heat set against caramelised sweetness.',
     ),
-    protein: MawzoonCatalog.spicedLambKofta,
-    carb: MawzoonCatalog.pearlCouscous,
-    fiber: MawzoonCatalog.citrusFennelRocket,
+    protein: MawzoonCatalog.pulledSlowCookedBeef,
+    carb: MawzoonCatalog.sweetPotatoWedges,
+    fiber: MawzoonCatalog.mediterraneanSumacSalad,
     basePriceMinorUnits: _basePriceMinorUnits,
   );
 
-  /// Harissa tofu, sweet potato, green beans. Fully plant-based.
-  static const SignaturePlate gardenEmber = SignaturePlate(
-    id: 'signature.garden_ember',
-    name: LocalizedText(ar: 'جمرة الحديقة', en: 'Garden Ember'),
+  /// Kofta, whole wheat pasta, sumac salad.
+  static const SignaturePlate koftaAlDente = SignaturePlate(
+    id: 'signature.kofta_al_dente',
+    name: LocalizedText(ar: 'كفتة ومعكرونة', en: 'Kofta al Dente'),
     tagline: LocalizedText(
-      ar: 'توفو بالهريسة، بطاطا حلوة، فاصولياء',
-      en: 'Harissa tofu, sweet potato, green beans',
+      ar: 'كفتة بالبهارات، قمح كامل، سماق',
+      en: 'Spiced kofta, whole wheat, sumac',
     ),
     chefNote: LocalizedText(
-      ar: 'نباتي بالكامل ولا يعتذر عن ذلك: الهريسة المنزلية تفعل كل شيء.',
-      en: 'Entirely plant-based and unapologetic about it — the house harissa '
-          'does all the work.',
+      ar: 'السبع بهارات مع معكرونة القمح الكامل — أبطأ طبق في إطلاق الطاقة.',
+      en: 'Seven spices over whole wheat — the slowest-releasing plate we '
+          'make.',
     ),
-    protein: MawzoonCatalog.smokedHarissaTofu,
-    carb: MawzoonCatalog.sweetPotatoMash,
-    fiber: MawzoonCatalog.blisteredGreenBeans,
+    protein: MawzoonCatalog.koftaSpicedMince,
+    carb: MawzoonCatalog.wholeWheatPasta,
+    fiber: MawzoonCatalog.mediterraneanSumacSalad,
     basePriceMinorUnits: _basePriceMinorUnits,
   );
 
-  /// Za'atar shrimp, herbed quinoa, citrus fennel.
-  static const SignaturePlate zaatarShore = SignaturePlate(
-    id: 'signature.zaatar_shore',
-    name: LocalizedText(ar: 'شاطئ الزعتر', en: "Za'atar Shore"),
+  /// Marinated thighs, toasted quinoa, charred veg.
+  static const SignaturePlate sumacAndQuinoa = SignaturePlate(
+    id: 'signature.sumac_and_quinoa',
+    name: LocalizedText(ar: 'سماق وكينوا', en: 'Sumac & Quinoa'),
     tagline: LocalizedText(
-      ar: 'روبيان بالزعتر، كينوا، شمر بالحمضيات',
-      en: "Za'atar shrimp, quinoa, citrus fennel",
+      ar: 'أفخاذ متبّلة، كينوا محمّصة، خضار',
+      en: 'Marinated thighs, toasted quinoa, charred veg',
     ),
     chefNote: LocalizedText(
-      ar: 'أخف أطباقنا وأكثرها انتعاشًا — زعتر بري وليمون وبحر.',
-      en: 'Our lightest, brightest plate — wild thyme, lemon and sea.',
+      ar: 'نقع ليلة كاملة بالسماق، مع كينوا محمّصة على نار جافة قبل الطهي.',
+      en: 'An overnight sumac marinade, with quinoa dry-toasted before it ever '
+          'sees water.',
     ),
-    protein: MawzoonCatalog.zaatarShrimp,
-    carb: MawzoonCatalog.herbedQuinoa,
-    fiber: MawzoonCatalog.citrusFennelRocket,
+    protein: MawzoonCatalog.marinatedThighs,
+    carb: MawzoonCatalog.toastedQuinoa,
+    fiber: MawzoonCatalog.charredGardenVeggies,
     basePriceMinorUnits: _basePriceMinorUnits,
   );
 
   /// All signature plates, in menu order.
   static const List<SignaturePlate> all = <SignaturePlate>[
     emberStandard,
-    coastalSaffron,
-    charcoalFreekeh,
-    levantineKofta,
-    gardenEmber,
-    zaatarShore,
+    smokehouseBulgur,
+    smashAndSteam,
+    slowAndSweet,
+    koftaAlDente,
+    sumacAndQuinoa,
   ];
 
   /// Looks up a signature plate by [id], or returns `null`.
