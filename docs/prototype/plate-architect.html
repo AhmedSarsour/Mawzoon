@@ -1,0 +1,1687 @@
+<title>Mawzoon Plate Architect</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+
+<style>
+  /* ---------------------------------------------------------------
+     Mawzoon — 60/30/10
+     60% canvas ground · 30% structural surfaces · 10% ember + olive
+     Light palette on bare :root; dark redefines tokens only.
+     --------------------------------------------------------------- */
+  :root {
+    --canvas:        #F8F7F3;   /* Warm Culinary Linen */
+    --structure:     #EAE6DF;   /* Soft Steamed Stone  */
+    --elevation:     #F2EFE9;
+    --hairline:      #DAD4C9;
+    --ink:           #232624;
+    --ink-soft:      #5E625C;
+    --ink-faint:     #8D9089;
+
+    --ember:         #C85A27;   /* Roasted Ember, darkened for AA on linen */
+    --ember-pure:    #DE6B35;
+    --olive:         #4E7A58;   /* Cold-Pressed Olive */
+
+    --tone-protein:  #C24E2C;
+    --tone-carb:     #A87722;
+    --tone-fiber:    #4E7A58;
+
+    --track:         rgba(35, 38, 36, 0.10);
+    --shadow:        0 1px 2px rgba(35,38,36,.05), 0 8px 24px -12px rgba(35,38,36,.18);
+    --chip-shadow:   0 1px 2px rgba(35,38,36,.06);
+
+    --r-lg: 18px;
+    --r-md: 13px;
+    --r-sm: 9px;
+
+    --latin: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --arabic: "IBM Plex Sans Arabic", "SF Arabic", "Noto Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --canvas:       #111312;  /* Smoked Obsidian */
+      --structure:    #1C1F1D;  /* Warm Charcoal   */
+      --elevation:    #242826;
+      --hairline:     #323733;
+      --ink:          #ECE8E0;
+      --ink-soft:     #A2A79E;
+      --ink-faint:    #767C74;
+
+      --ember:        #DE6B35;
+      --ember-pure:   #DE6B35;
+      --olive:        #6F9E79;
+
+      --tone-protein: #D95D39;
+      --tone-carb:    #E0A948;
+      --tone-fiber:   #5B8A65;
+
+      --track:        rgba(236, 232, 224, 0.10);
+      --shadow:       0 1px 2px rgba(0,0,0,.30), 0 10px 30px -14px rgba(0,0,0,.65);
+      --chip-shadow:  0 1px 2px rgba(0,0,0,.28);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --canvas:       #111312;
+    --structure:    #1C1F1D;
+    --elevation:    #242826;
+    --hairline:     #323733;
+    --ink:          #ECE8E0;
+    --ink-soft:     #A2A79E;
+    --ink-faint:    #767C74;
+
+    --ember:        #DE6B35;
+    --ember-pure:   #DE6B35;
+    --olive:        #6F9E79;
+
+    --tone-protein: #D95D39;
+    --tone-carb:    #E0A948;
+    --tone-fiber:   #5B8A65;
+
+    --track:        rgba(236, 232, 224, 0.10);
+    --shadow:       0 1px 2px rgba(0,0,0,.30), 0 10px 30px -14px rgba(0,0,0,.65);
+    --chip-shadow:  0 1px 2px rgba(0,0,0,.28);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--latin);
+    -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* A Latin metric run inside Arabic flow must be isolated, or the bidi
+     algorithm reorders it into nonsense: "483 kcal · 54g protein" renders as
+     "kcal · 54g 483 protein". Isolation keeps the run internally LTR while
+     leaving its placement to the surrounding RTL flow. */
+  .metric {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  /* Arabic needs the room. Explicit strut prevents harakat clipping. */
+  [dir="rtl"] body, body[data-lang="ar"] {
+    font-family: var(--arabic);
+  }
+  [data-lang="ar"] .ar-flow { line-height: 1.8; }
+
+  .shell {
+    max-width: 480px;
+    margin-inline: auto;
+    padding-inline: 16px;
+    padding-block: 0 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-block: 18px 12px;
+  }
+  .wordmark { display: flex; flex-direction: column; gap: 1px; }
+  .wordmark b {
+    font-family: var(--arabic);
+    font-size: 25px;
+    font-weight: 600;
+    line-height: 1.5;
+    letter-spacing: 0;
+  }
+  .wordmark span {
+    font-family: var(--latin);
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  .lang-toggle {
+    display: inline-flex;
+    background: var(--structure);
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .lang-toggle button {
+    font-family: var(--latin);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    padding: 6px 11px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: background .18s ease, color .18s ease;
+  }
+  .lang-toggle button[aria-pressed="true"] {
+    background: var(--elevation);
+    color: var(--ink);
+    box-shadow: var(--chip-shadow);
+  }
+
+  /* ---------- section furniture ---------- */
+  .rail {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-block: 20px 9px;
+  }
+  .rail h2 {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    letter-spacing: .005em;
+  }
+  [data-lang="ar"] .rail h2 { font-size: 15px; font-weight: 600; }
+  .rail .hint {
+    font-size: 11px;
+    color: var(--ink-faint);
+    font-weight: 500;
+  }
+
+  /* ---------- horizontal snap tracks ---------- */
+  .track {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    padding-block: 2px 6px;
+    margin-inline: -16px;
+    padding-inline: 16px;
+  }
+  .track::-webkit-scrollbar { display: none; }
+  .track > * { scroll-snap-align: start; flex: 0 0 auto; }
+
+  /* ---------- curated plates ---------- */
+  .curated {
+    width: 152px;
+    text-align: start;
+    background: var(--structure);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-md);
+    padding: 11px 12px 12px;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    transition: transform .13s cubic-bezier(.2,.7,.3,1), border-color .18s ease;
+    box-shadow: var(--chip-shadow);
+  }
+  .curated:active { transform: scale(.96); }
+  .curated[data-active="true"] { border-color: var(--ember); }
+  .curated .cname {
+    font-size: 13px; font-weight: 700; line-height: 1.35;
+  }
+  [data-lang="ar"] .curated .cname { font-size: 14px; font-weight: 600; line-height: 1.7; }
+  .curated .ckcal {
+    font-family: var(--latin);
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-size: 10.5px; font-weight: 600; color: var(--ink-faint);
+    letter-spacing: .02em;
+  }
+
+  /* ---------- the platter ---------- */
+  .stage {
+    position: relative;
+    margin-block: 14px 0;
+  }
+  canvas { display: block; width: 100%; height: auto; }
+
+  .plateline {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-block: 6px 0;
+    min-height: 56px;
+  }
+  .plateline .row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  [data-lang="ar"] .plateline .row { font-size: 13px; line-height: 1.75; }
+  .plateline .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    flex: 0 0 auto; transform: translateY(-1px);
+  }
+  .plateline .nm { font-weight: 600; }
+  .plateline .gm {
+    font-family: var(--latin);
+    direction: ltr;
+    unicode-bidi: isolate;
+    margin-inline-start: auto;
+    font-size: 11px; font-weight: 600; color: var(--ink-faint);
+  }
+  .plateline .row[data-empty="true"] .nm {
+    color: var(--ink-faint); font-weight: 500; font-style: normal;
+  }
+
+  /* ---------- verdict ---------- */
+  .verdict {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 13px;
+    border-radius: var(--r-md);
+    background: var(--structure);
+    border: 1px solid var(--hairline);
+    margin-block: 12px 0;
+  }
+  .verdict .mark {
+    width: 26px; height: 26px; border-radius: 50%;
+    flex: 0 0 auto;
+    display: grid; place-items: center;
+    background: var(--track);
+    transition: background .3s ease;
+  }
+  .verdict[data-locked="true"] .mark { background: color-mix(in srgb, var(--olive) 22%, transparent); }
+  .verdict .mark svg { width: 14px; height: 14px; display: block; }
+  .verdict .txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .verdict .h {
+    font-size: 12.5px; font-weight: 700; letter-spacing: .005em;
+  }
+  .verdict[data-locked="true"] .h { color: var(--olive); }
+  .verdict .d { font-size: 11px; color: var(--ink-soft); line-height: 1.45; }
+  [data-lang="ar"] .verdict .h { font-size: 14px; font-weight: 600; }
+  [data-lang="ar"] .verdict .d { font-size: 12px; line-height: 1.8; }
+
+  /* ---------- ingredient chips ---------- */
+  .chip {
+    width: 138px;
+    text-align: start;
+    background: var(--structure);
+    border: 1.5px solid var(--hairline);
+    border-radius: var(--r-md);
+    padding: 10px 11px 11px;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: transform .13s cubic-bezier(.2,.7,.3,1), border-color .2s ease, background .2s ease;
+    box-shadow: var(--chip-shadow);
+  }
+  .chip:active { transform: scale(.96); }
+  .chip[aria-pressed="true"] {
+    background: var(--elevation);
+    border-color: var(--tone);
+  }
+  .chip .nm {
+    font-size: 12.5px; font-weight: 650; line-height: 1.35;
+    min-height: 34px;
+  }
+  [data-lang="ar"] .chip .nm { font-size: 13px; font-weight: 600; line-height: 1.75; min-height: 45px; }
+  .chip .meta {
+    font-family: var(--latin);
+    direction: ltr;
+    unicode-bidi: isolate;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10.5px; font-weight: 600; color: var(--ink-faint);
+    letter-spacing: .01em;
+  }
+  .chip .swatch {
+    width: 7px; height: 7px; border-radius: 2px; background: var(--tone);
+    flex: 0 0 auto;
+    opacity: .5;
+    transition: opacity .2s ease;
+  }
+  .chip[aria-pressed="true"] .swatch { opacity: 1; }
+  .chip .tags {
+    display: flex; flex-wrap: wrap; gap: 4px;
+  }
+  .chip .tag {
+    font-family: var(--latin);
+    font-size: 8.5px; font-weight: 700; letter-spacing: .05em;
+    text-transform: uppercase;
+    padding: 2.5px 5px;
+    border-radius: 4px;
+    background: var(--track);
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  [data-lang="ar"] .chip .tag {
+    font-family: var(--arabic); font-size: 9.5px; letter-spacing: 0;
+    text-transform: none; font-weight: 500; padding: 2px 5px;
+  }
+  .chip .alrg {
+    font-family: var(--latin);
+    font-size: 9px; font-weight: 600; color: var(--ember);
+    letter-spacing: .02em;
+  }
+  [data-lang="ar"] .chip .alrg { font-family: var(--arabic); font-size: 10px; }
+
+  /* ---------- the dock ---------- */
+  .dock {
+    position: sticky;
+    bottom: 0;
+    margin-top: 22px;
+    margin-inline: -16px;
+    padding-inline: 16px;
+    padding-top: 10px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, var(--canvas) 92%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .scalebar {
+    display: flex;
+    background: var(--structure);
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 3px;
+    margin-bottom: 9px;
+  }
+  .scalebar button {
+    flex: 1 1 0;
+    min-width: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink-soft);
+    cursor: pointer;
+    padding: 7px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    font: inherit;
+    transition: background .2s ease, color .2s ease;
+  }
+  .scalebar button strong { font-size: 11.5px; font-weight: 700; }
+  [data-lang="ar"] .scalebar button strong { font-size: 12.5px; font-weight: 600; }
+  .scalebar button em {
+    font-family: var(--latin);
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-style: normal; font-size: 9.5px; font-weight: 600;
+    color: var(--ink-faint); letter-spacing: .02em;
+  }
+  .scalebar button[aria-pressed="true"] {
+    background: var(--elevation);
+    color: var(--ink);
+    box-shadow: var(--chip-shadow);
+  }
+  .scalebar button[aria-pressed="true"] em { color: var(--ink-soft); }
+
+  .capsule {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .macros {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .kcal {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+  }
+  .kcal b {
+    font-family: var(--latin);
+    font-size: 27px;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1;
+  }
+  .kcal span {
+    font-family: var(--latin);
+    font-size: 10px; font-weight: 700; color: var(--ink-faint);
+    letter-spacing: .06em; text-transform: uppercase;
+  }
+  .split { display: flex; gap: 9px; }
+  .split div { display: flex; flex-direction: column; gap: 1px; }
+  .split b {
+    font-family: var(--latin);
+    font-size: 12.5px; font-weight: 700; line-height: 1;
+  }
+  .split span {
+    font-family: var(--latin);
+    font-size: 8.5px; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--ink-faint);
+  }
+
+  .cta {
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ember);
+    color: #FFF6F0;
+    font: inherit;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: .01em;
+    padding: 12px 19px;
+    cursor: pointer;
+    transition: transform .13s cubic-bezier(.2,.7,.3,1), opacity .2s ease, filter .2s ease;
+    white-space: nowrap;
+  }
+  [data-lang="ar"] .cta { font-size: 14px; font-weight: 600; }
+  .cta:active { transform: scale(.96); }
+  .cta[disabled] {
+    background: var(--structure);
+    color: var(--ink-faint);
+    cursor: not-allowed;
+    border: 1px solid var(--hairline);
+  }
+
+  /* ---------- footnote ---------- */
+  .footnote {
+    font-family: var(--latin);
+    unicode-bidi: plaintext;
+    font-size: 10.5px;
+    line-height: 1.65;
+    color: var(--ink-faint);
+    padding-block: 18px 6px;
+    border-top: 1px solid var(--hairline);
+    margin-top: 22px;
+  }
+  .footnote code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    background: var(--structure);
+    padding: 1px 4px;
+    border-radius: 4px;
+  }
+
+  :where(button):focus-visible {
+    outline: 2px solid var(--ember);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  }
+</style>
+
+<div class="shell" id="shell">
+
+  <header class="masthead">
+    <div class="wordmark">
+      <b>موزون</b>
+      <span>Mawzoon · Plate Architect</span>
+    </div>
+    <div class="lang-toggle" role="group" aria-label="Language">
+      <button type="button" data-lang-btn="ar" aria-pressed="true">ع</button>
+      <button type="button" data-lang-btn="en" aria-pressed="false">EN</button>
+    </div>
+  </header>
+
+  <div class="rail">
+    <h2 data-i18n="curatedTitle">أطباق الشيف</h2>
+    <span class="hint" data-i18n="curatedHint">نقرة واحدة</span>
+  </div>
+  <div class="track" id="curatedTrack"></div>
+
+  <div class="stage">
+    <canvas id="platter" aria-hidden="true"></canvas>
+    <p class="visually-hidden" id="platterSummary" role="status" aria-live="polite"></p>
+  </div>
+
+  <div class="plateline" id="plateline"></div>
+
+  <div class="verdict" id="verdict" data-locked="false">
+    <span class="mark" id="verdictMark"></span>
+    <span class="txt">
+      <span class="h" id="verdictHead"></span>
+      <span class="d ar-flow" id="verdictDetail"></span>
+    </span>
+  </div>
+
+  <section id="segments"></section>
+
+  <div class="dock">
+    <div class="scalebar" role="group" aria-label="Portion">
+      <button type="button" data-scale="standardBalance" aria-pressed="true">
+        <strong data-i18n="scaleStdName">التوازن القياسي</strong>
+        <em>~550 kcal</em>
+      </button>
+      <button type="button" data-scale="athleticLoad" aria-pressed="false">
+        <strong data-i18n="scaleAthName">الحِمل الرياضي</strong>
+        <em>~780 kcal</em>
+      </button>
+    </div>
+    <div class="capsule">
+      <div class="macros">
+        <div class="kcal"><b id="capKcal">0</b><span>kcal</span></div>
+        <div class="split">
+          <div><b id="capP">0g</b><span>Pro</span></div>
+          <div><b id="capC">0g</b><span>Carb</span></div>
+          <div><b id="capF">0g</b><span>Fat</span></div>
+          <div><b id="capGL">0</b><span>GL</span></div>
+        </div>
+      </div>
+      <button type="button" class="cta" id="cta" disabled></button>
+    </div>
+  </div>
+
+  <p class="footnote ar-flow" id="footnote"></p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* =================================================================
+     1. DOMAIN — a faithful port of lib/core/, so the figures this
+        prototype shows are the figures the Dart engine computes.
+     ================================================================= */
+
+  // Modified Atwater: fibre is only partly metabolised, so it is billed at
+  // 2 kcal/g and taken out of the carbohydrate pool first.
+  const ATWATER = { protein: 4, netCarb: 4, fiber: 2, fat: 9 };
+
+  const kcalOf = (m) => {
+    const net = Math.max(0, m.c - m.fib);
+    return m.p * ATWATER.protein + net * ATWATER.netCarb
+         + m.fib * ATWATER.fiber + m.f * ATWATER.fat;
+  };
+  const proteinKcal = (m) => m.p * ATWATER.protein;
+  const carbKcal = (m) => Math.max(0, m.c - m.fib) * ATWATER.netCarb + m.fib * ATWATER.fiber;
+  const fatKcal = (m) => m.f * ATWATER.fat;
+
+  const SEGMENTS = ["protein", "smartCarb", "vitalFiber"];
+
+  const SCALES = {
+    standardBalance: {
+      nominal: 550, band: 75,
+      factor: { protein: 1.0, smartCarb: 1.0, vitalFiber: 1.0 },
+    },
+    athleticLoad: {
+      nominal: 780, band: 80,
+      factor: { protein: 1.6, smartCarb: 1.5, vitalFiber: 1.15 },
+    },
+  };
+
+  // m = { p: protein g, c: total carb g, f: fat g, fib: dietary fibre g }
+  // gi = glycemic index, 0-110 against pure glucose; 0 where undefined.
+  const CATALOG = {
+    protein: [
+      { id: "smoked_entrecote", ar: "انتركوت مدخّن", en: "Smoked Entrec\u00f4te",
+        g: 140, m: { p: 36, c: 0, f: 18, fib: 0 }, gi: 0,
+        tags: { ar: ["عالي البروتين", "قليل الكربوهيدرات"], en: ["High Protein", "Low Carb"] }, alrg: null },
+      { id: "smashed_lean_beef", ar: "لحم بقري مسحوق قليل الدهن", en: "Smashed Lean Beef",
+        g: 140, m: { p: 38, c: 1, f: 10, fib: 0 }, gi: 0,
+        tags: { ar: ["عالي البروتين", "قليل الكربوهيدرات"], en: ["High Protein", "Low Carb"] }, alrg: null },
+      { id: "herb_grilled_breast", ar: "صدر دجاج مشوي بالأعشاب", en: "Herb Grilled Breast",
+        g: 150, m: { p: 46.5, c: 0.5, f: 5.4, fib: 0 }, gi: 0,
+        tags: { ar: ["عالي البروتين", "خالٍ من الغلوتين"], en: ["High Protein", "Gluten-Free"] }, alrg: null },
+      { id: "pulled_slow_cooked_beef", ar: "لحم بقري مسحوب مطهو ببطء", en: "Pulled Slow-Cooked Beef",
+        g: 140, m: { p: 37, c: 2, f: 12, fib: 0.3 }, gi: 0,
+        tags: { ar: ["عالي البروتين", "قليل الكربوهيدرات"], en: ["High Protein", "Low Carb"] }, alrg: null },
+      { id: "kofta_spiced_mince", ar: "كفتة مفرومة بالبهارات", en: "Kofta Spiced Mince",
+        g: 140, m: { p: 33, c: 3, f: 14, fib: 0.8 }, gi: 0,
+        tags: { ar: ["عالي البروتين", "متبّل"], en: ["High Protein", "Spiced"] }, alrg: null },
+      { id: "marinated_thighs", ar: "أفخاذ دجاج متبّلة", en: "Marinated Thighs",
+        g: 150, m: { p: 36, c: 1.5, f: 12, fib: 0 }, gi: 0,
+        tags: { ar: ["عالي البروتين", "متبّل"], en: ["High Protein", "Spiced"] }, alrg: null },
+    ],
+    smartCarb: [
+      { id: "air_fried_spiced_potatoes", ar: "بطاطس متبّلة مقلية بالهواء", en: "Air-Fried Spiced Potatoes",
+        g: 160, m: { p: 3.5, c: 33, f: 4, fib: 3.5 }, gi: 75,
+        tags: { ar: ["نباتي بالكامل", "متبّل"], en: ["Plant-Based", "Spiced"] }, alrg: null },
+      { id: "steamed_basmati", ar: "أرز بسمتي مطهو بالبخار", en: "Steamed Basmati",
+        g: 150, m: { p: 4, c: 42, f: 0.6, fib: 1.2 }, gi: 52,
+        tags: { ar: ["نباتي بالكامل", "خالٍ من الغلوتين"], en: ["Plant-Based", "Gluten-Free"] }, alrg: null },
+      { id: "sweet_potato_wedges", ar: "أصابع البطاطا الحلوة", en: "Sweet Potato Wedges",
+        g: 170, m: { p: 3.2, c: 34, f: 3.5, fib: 5.3 }, gi: 63,
+        tags: { ar: ["نباتي بالكامل", "غني بالألياف"], en: ["Plant-Based", "High Fibre"] }, alrg: null },
+      { id: "whole_bulgur", ar: "برغل أسمر", en: "Whole Bulgur",
+        g: 150, m: { p: 6, c: 34, f: 1.5, fib: 7 }, gi: 48,
+        tags: { ar: ["نباتي بالكامل", "غني بالألياف"], en: ["Plant-Based", "High Fibre"] },
+        alrg: { ar: "يحتوي على الغلوتين", en: "Contains gluten" } },
+      { id: "toasted_quinoa", ar: "كينوا محمّصة", en: "Toasted Quinoa",
+        g: 150, m: { p: 8, c: 32, f: 4.5, fib: 4.5 }, gi: 53,
+        tags: { ar: ["نباتي بالكامل", "خالٍ من الغلوتين"], en: ["Plant-Based", "Gluten-Free"] }, alrg: null },
+      { id: "whole_wheat_pasta", ar: "معكرونة القمح الكامل", en: "Whole Wheat Pasta",
+        g: 150, m: { p: 8, c: 38, f: 1.6, fib: 5.5 }, gi: 42,
+        tags: { ar: ["نباتي بالكامل", "إطلاق بطيء"], en: ["Plant-Based", "Slow Release"] },
+        alrg: { ar: "يحتوي على الغلوتين", en: "Contains gluten" } },
+    ],
+    vitalFiber: [
+      { id: "charred_garden_veggies", ar: "خضار الحديقة المشوية", en: "Charred Garden Veggies",
+        g: 130, m: { p: 3.5, c: 11, f: 4.5, fib: 4.5 }, gi: 15,
+        tags: { ar: ["نباتي بالكامل", "قليل الكربوهيدرات"], en: ["Plant-Based", "Low Carb"] }, alrg: null },
+      { id: "mediterranean_sumac_salad", ar: "سلطة السماق المتوسطية", en: "Mediterranean Sumac Salad",
+        g: 130, m: { p: 2.5, c: 9, f: 5.5, fib: 3.2 }, gi: 15,
+        tags: { ar: ["نباتي بالكامل", "طازج"], en: ["Plant-Based", "Fresh"] }, alrg: null },
+    ],
+  };
+
+  const SIGNATURES = [
+    { id: "ember_standard", ar: "جمرة التوازن", en: "The Ember Standard",
+      protein: "herb_grilled_breast", smartCarb: "air_fried_spiced_potatoes", vitalFiber: "charred_garden_veggies" },
+    { id: "smokehouse_bulgur", ar: "دخان وبرغل", en: "Smokehouse & Bulgur",
+      protein: "smoked_entrecote", smartCarb: "whole_bulgur", vitalFiber: "mediterranean_sumac_salad" },
+    { id: "smash_and_steam", ar: "مسحوق وبخار", en: "Smash & Steam",
+      protein: "smashed_lean_beef", smartCarb: "steamed_basmati", vitalFiber: "charred_garden_veggies" },
+    { id: "slow_and_sweet", ar: "بطء وحلاوة", en: "Slow & Sweet",
+      protein: "pulled_slow_cooked_beef", smartCarb: "sweet_potato_wedges", vitalFiber: "mediterranean_sumac_salad" },
+    { id: "kofta_al_dente", ar: "كفتة ومعكرونة", en: "Kofta al Dente",
+      protein: "kofta_spiced_mince", smartCarb: "whole_wheat_pasta", vitalFiber: "mediterranean_sumac_salad" },
+    { id: "sumac_and_quinoa", ar: "سماق وكينوا", en: "Sumac & Quinoa",
+      protein: "marinated_thighs", smartCarb: "toasted_quinoa", vitalFiber: "charred_garden_veggies" },
+  ];
+
+  // Glycemic load, the published way: index weighted by the digestible
+  // carbohydrate a component actually contributes.
+  const glycemicLoad = (gi, m) => gi * Math.max(0, m.c - m.fib) / 100;
+  const GL_STEADY_CEILING = 10;
+  const GL_BALANCED_CEILING = 19;
+  const glycemicBand = (load) =>
+    load <= GL_STEADY_CEILING ? "steady" : (load <= GL_BALANCED_CEILING ? "balanced" : "quick");
+
+  const optionById = (segment, id) =>
+    CATALOG[segment].find((o) => o.id === id) || null;
+
+  /** Scales a component's mass and macros by the same factor — they can never diverge. */
+  function portioned(option, scale) {
+    const k = SCALES[scale].factor[optionSegment(option)];
+    return {
+      option,
+      grams: option.g * k,
+      m: { p: option.m.p * k, c: option.m.c * k, f: option.m.f * k, fib: option.m.fib * k },
+    };
+  }
+
+  function optionSegment(option) {
+    for (const s of SEGMENTS) if (CATALOG[s].includes(option)) return s;
+    return "protein";
+  }
+
+  /** The whole derived nutritional picture — nothing here is stored state. */
+  function summarise(selection, scale) {
+    const parts = {};
+    let total = { p: 0, c: 0, f: 0, fib: 0 };
+    let grams = 0;
+
+    for (const seg of SEGMENTS) {
+      const opt = selection[seg];
+      if (!opt) { parts[seg] = null; continue; }
+      const pc = portioned(opt, scale);
+      parts[seg] = pc;
+      grams += pc.grams;
+      total = { p: total.p + pc.m.p, c: total.c + pc.m.c, f: total.f + pc.m.f, fib: total.fib + pc.m.fib };
+    }
+
+    const totalKcal = kcalOf(total);
+    const shares = {};
+    for (const seg of SEGMENTS) {
+      shares[seg] = (!parts[seg] || totalKcal <= 0) ? 0 : kcalOf(parts[seg].m) / totalKcal;
+    }
+
+    // Glycemic load, summed per compartment, then banded on the published
+    // meal-level thresholds — not on the damped figure, and not on thresholds
+    // fitted to this menu.
+    let rawLoad = 0;
+    for (const seg of SEGMENTS) {
+      if (parts[seg]) rawLoad += glycemicLoad(parts[seg].option.gi, parts[seg].m);
+    }
+    const damping = Math.min(0.35, 0.006 * total.p + 0.003 * total.f + 0.020 * total.fib);
+    const dampedLoad = rawLoad * (1 - damping);
+
+    const filled = SEGMENTS.filter((s) => parts[s]);
+    const cfg = SCALES[scale];
+    const lower = cfg.nominal - cfg.band;
+    const upper = cfg.nominal + cfg.band;
+
+    let framing = "balanced";
+    if (totalKcal < lower) framing = "lighter";
+    else if (totalKcal > upper) framing = "heartier";
+
+    return {
+      scale, parts, shares, total, grams, totalKcal,
+      glycemicLoad: rawLoad,
+      dampedGlycemicLoad: dampedLoad,
+      glycemicBand: glycemicBand(rawLoad),
+      filled,
+      complete: filled.length === SEGMENTS.length,
+      framing, lower, upper,
+      nominalProgress: Math.min(1, totalKcal / cfg.nominal),
+      proteinShare: totalKcal <= 0 ? 0 : proteinKcal(total) / totalKcal,
+      carbShare: totalKcal <= 0 ? 0 : carbKcal(total) / totalKcal,
+      fatShare: totalKcal <= 0 ? 0 : fatKcal(total) / totalKcal,
+    };
+  }
+
+  /* =================================================================
+     2. COPY — Arabic leads; it is not a translation layer.
+     ================================================================= */
+
+  const I18N = {
+    ar: {
+      curatedTitle: "أطباق الشيف", curatedHint: "نقرة واحدة",
+      buildTitle: "ابنِ طبقك", buildHint: "ثلاثة أقسام",
+      scaleStdName: "التوازن القياسي", scaleAthName: "الحِمل الرياضي",
+      segNames: { protein: "البروتين", smartCarb: "الكربوهيدرات الذكية", vitalFiber: "الألياف الحيوية" },
+      invite: { protein: "اختر مصدر البروتين", smartCarb: "اختر مصدر الطاقة", vitalFiber: "اختر الخضار الطازجة" },
+      empty: { protein: "لم تختر البروتين بعد", smartCarb: "لم تختر الكربوهيدرات بعد", vitalFiber: "لم تختر الخضار بعد" },
+      framing: {
+        lighter:  { h: "طبق خفيف", d: "وقود أقل من المعتاد — مناسب ليوم هادئ" },
+        balanced: { h: "موزون",    d: "ضمن التوازن الذي صممه الشيف" },
+        heartier: { h: "طبق دسم",  d: "وقود إضافي — مناسب بعد التمرين" },
+      },
+      release: { steady: "إطلاق بطيء", balanced: "إطلاق متوازن", quick: "إطلاق سريع" },
+      remaining: (n) => n === 1 ? "بقي قسم واحد" : (n === 2 ? "بقي قسمان" : "ابدأ باختيار البروتين"),
+      remainingDetail: "الحلقة تُغلق عند اكتمال الأقسام الثلاثة",
+      cta: "أضف إلى السلة", ctaWaiting: "أكمل الأقسام",
+      footnoteHtml:
+        "نموذج أولي تفاعلي يعمل بنفس محرك التطبيق. الصينية شكل بيضاوي عضوي " +
+        "(<code class=\"metric\">superellipse</code>) مقسّم <b>بالمساحة لا بالعرض</b>: " +
+        "البيضاوي أعرض في وسطه، فالتقسيم المتساوي بالعرض يجعل القسم الأوسط يبدو أكبر ممّا هو. " +
+        "حلقة الماكرو مرسومة على محيط الصينية نفسها وتُقسَّم بنسب الطاقة، كما يفعل " +
+        "<code class=\"metric\">PathMetric.extractPath</code>. الطاقة محسوبة بنظام أتواتر المعدّل، " +
+        "و<code class=\"metric\">GL</code> هو الحمل الجلايسيمي المنشور. جرّب تبديل الحِمل، واللغة، ووضع الجهاز الداكن.",
+    },
+    en: {
+      curatedTitle: "Chef's plates", curatedHint: "One tap",
+      buildTitle: "Build your plate", buildHint: "Three compartments",
+      scaleStdName: "Standard Balance", scaleAthName: "Athletic Load",
+      segNames: { protein: "Protein", smartCarb: "Smart Carb", vitalFiber: "Vital Fiber" },
+      invite: { protein: "Choose your protein", smartCarb: "Choose your energy source", vitalFiber: "Choose your greens" },
+      empty: { protein: "No protein yet", smartCarb: "No smart carb yet", vitalFiber: "No greens yet" },
+      framing: {
+        lighter:  { h: "A lighter plate", d: "Less fuel than usual — good for a quieter day" },
+        balanced: { h: "Balanced",        d: "Right inside the chef's balance" },
+        heartier: { h: "A heartier plate", d: "Extra fuel — good after training" },
+      },
+      release: { steady: "steady release", balanced: "balanced release", quick: "quick release" },
+      remaining: (n) => n === 1 ? "One compartment to go" : (n === 2 ? "Two compartments to go" : "Start with a protein"),
+      remainingDetail: "The ring closes when all three are filled",
+      cta: "Add to cart", ctaWaiting: "Finish the plate",
+      footnoteHtml:
+        "Interactive prototype running the app's own engine. The dish is an " +
+        "organic <code>superellipse</code>, split <b>by area rather than by width</b>: " +
+        "an oval is fattest in the middle, so equal-width slices would make the middle " +
+        "compartment look half again as large as the ends. The macro ring is drawn on the " +
+        "dish's own perimeter and split by energy share, the way " +
+        "<code>PathMetric.extractPath</code> does it. Energy uses the modified Atwater " +
+        "system, and <code>GL</code> is published glycemic load. Try the load toggle, the " +
+        "language switch, and your device's dark mode.",
+    },
+  };
+
+  /* =================================================================
+     3. STATE
+     ================================================================= */
+
+  const state = {
+    lang: "ar",
+    scale: "standardBalance",
+    // Opens two-thirds built: the arcs are already telling a story, and the
+    // balance lock is one tap away rather than already spent.
+    selection: {
+      protein: optionById("protein", "herb_grilled_breast"),
+      smartCarb: optionById("smartCarb", "air_fried_spiced_potatoes"),
+      vitalFiber: null,
+    },
+    wasComplete: false,
+  };
+
+  const t = () => I18N[state.lang];
+  const nameOf = (o) => o[state.lang];
+
+  /* =================================================================
+     4. HAPTICS — named by intent, mapped once, exactly as HapticCue does.
+     ================================================================= */
+
+  const haptic = (cue) => {
+    if (!("vibrate" in navigator)) return;
+    try {
+      if (cue === "selection") navigator.vibrate(7);
+      else if (cue === "light") navigator.vibrate(13);
+      else if (cue === "medium") navigator.vibrate([0, 20, 45, 26]);
+    } catch (_) { /* a blocked vibrate is never worth an error */ }
+  };
+
+  /* =================================================================
+     5. GEOMETRY — the organic oval, split by area, and its perimeter
+        metrics. A direct port of lib/ui_primitives/plate/plate_geometry.dart,
+        so what you see here is what the Dart painter draws.
+     ================================================================= */
+
+  const EXPONENT = 2.7;          // 2 is an ellipse; 2.7 is a platter
+  const ORGANIC_AMPLITUDE = 0.012;
+  const DIVIDER_BOW = 0.055;
+  const RING_GAP = 13;
+  const SAMPLES = 240;
+  // Protein takes the largest compartment, then the carb, then the greens.
+  const AREA_FRACTIONS = [0.40, 0.34, 0.26];
+
+  const signedPow = (v, p) => (v < 0 ? -Math.pow(-v, p) : Math.pow(v, p));
+
+  /** Samples a modulated superellipse into an upper and a lower profile. */
+  function buildOutline(cx, cy, a, b) {
+    const k = 2 / EXPONENT;
+    const top = [];
+    const bottom = [];
+    for (let i = 0; i <= SAMPLES; i++) {
+      const t = Math.PI * i / SAMPLES;
+      const m = 1 + ORGANIC_AMPLITUDE * Math.sin(3 * t + Math.PI / 5);
+      top.push({ x: cx + a * m * signedPow(Math.cos(t), k),
+                 y: cy - b * m * signedPow(Math.sin(t), k) });
+    }
+    for (let i = 0; i <= SAMPLES; i++) {
+      const t = Math.PI + Math.PI * i / SAMPLES;
+      const m = 1 + ORGANIC_AMPLITUDE * Math.sin(3 * t + Math.PI / 5);
+      bottom.push({ x: cx + a * m * signedPow(Math.cos(t), k),
+                    y: cy - b * m * signedPow(Math.sin(t), k) });
+    }
+    top.reverse(); // both profiles now ascend in x
+    return { top, bottom, minX: top[0].x, maxX: top[top.length - 1].x };
+  }
+
+  function sampleProfile(profile, x) {
+    if (x <= profile[0].x) return profile[0].y;
+    const last = profile[profile.length - 1];
+    if (x >= last.x) return last.y;
+    let lo = 0, hi = profile.length - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (profile[mid].x <= x) lo = mid; else hi = mid;
+    }
+    const p0 = profile[lo], p1 = profile[hi];
+    const span = p1.x - p0.x;
+    if (Math.abs(span) < 1e-12) return p0.y;
+    return p0.y + (p1.y - p0.y) * (x - p0.x) / span;
+  }
+
+  const topAt = (o, x) => sampleProfile(o.top, x);
+  const bottomAt = (o, x) => sampleProfile(o.bottom, x);
+
+  /** Area by the trapezoid rule over vertical strips. */
+  function areaUpTo(o, x, steps = 400) {
+    const end = Math.max(o.minX, Math.min(o.maxX, x));
+    if (end <= o.minX) return 0;
+    const dx = (end - o.minX) / steps;
+    let sum = 0;
+    let prev = bottomAt(o, o.minX) - topAt(o, o.minX);
+    for (let i = 1; i <= steps; i++) {
+      const xi = o.minX + dx * i;
+      const h = bottomAt(o, xi) - topAt(o, xi);
+      sum += (prev + h) / 2 * dx;
+      prev = h;
+    }
+    return sum;
+  }
+
+  /**
+   * The x where cumulative area reaches a fraction of the whole.
+   *
+   * An oval is fattest in the middle, so equal-width slices would make the
+   * middle compartment look half again as large as the ends. Bisecting on
+   * area is what keeps the tray honest.
+   */
+  function xAtAreaFraction(o, totalArea, fraction) {
+    const target = totalArea * fraction;
+    let lo = o.minX, hi = o.maxX;
+    for (let i = 0; i < 34; i++) {
+      const mid = (lo + hi) / 2;
+      if (areaUpTo(o, mid) < target) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+
+  function runBetween(profile, left, right) {
+    const run = [{ x: left, y: sampleProfile(profile, left) }];
+    for (const p of profile) if (p.x > left && p.x < right) run.push(p);
+    run.push({ x: right, y: sampleProfile(profile, right) });
+    return run;
+  }
+
+  /** Traces one compartment. Shared dividers are bowed; the rim is not. */
+  function traceZone(ctx, o, left, right, bow, bowLeft, bowRight) {
+    ctx.beginPath();
+    const topRun = runBetween(o.top, left, right);
+    ctx.moveTo(topRun[0].x, topRun[0].y);
+    for (let i = 1; i < topRun.length; i++) ctx.lineTo(topRun[i].x, topRun[i].y);
+
+    // Reversing a cubic reverses its control points, so the bow is negated on
+    // the upward pass. Without that the two compartments either side of a
+    // divider trace mirrored curves and leave a lens-shaped gap between them.
+    const divider = (x, downward, bowed) => {
+      const yT = topAt(o, x), yB = bottomAt(o, x);
+      if (!bowed) { ctx.lineTo(x, downward ? yB : yT); return; }
+      const y0 = downward ? yT : yB;
+      const y1 = downward ? yB : yT;
+      const sb = downward ? bow : -bow;
+      ctx.bezierCurveTo(
+        x + sb, y0 + (y1 - y0) * 0.28,
+        x - sb, y0 + (y1 - y0) * 0.72,
+        x, y1,
+      );
+    };
+
+    divider(right, true, bowRight);
+    const bottomRun = runBetween(o.bottom, left, right).reverse();
+    for (const p of bottomRun) ctx.lineTo(p.x, p.y);
+    divider(left, false, bowLeft);
+    ctx.closePath();
+  }
+
+  function outlinePath(ctx, o) {
+    ctx.beginPath();
+    ctx.moveTo(o.top[0].x, o.top[0].y);
+    for (let i = 1; i < o.top.length; i++) ctx.lineTo(o.top[i].x, o.top[i].y);
+    for (let i = o.bottom.length - 1; i >= 0; i--) {
+      ctx.lineTo(o.bottom[i].x, o.bottom[i].y);
+    }
+    ctx.closePath();
+  }
+
+  /**
+   * Arc-length metrics for the ring, rotated so zero sits at the top of the
+   * dish. This is the browser equivalent of Flutter's PathMetric: the arcs
+   * are genuine runs of the dish's own perimeter, not a shape drawn nearby
+   * and hoped to line up.
+   */
+  function buildRingMetrics(o) {
+    const loop = [...o.top];
+    for (let i = o.bottom.length - 1; i >= 0; i--) loop.push(o.bottom[i]);
+
+    const midX = (o.minX + o.maxX) / 2;
+    const topY = o.top[0].y;
+    let best = 0, bestScore = Infinity;
+    for (let i = 0; i < loop.length; i++) {
+      const score = Math.abs(loop[i].x - midX) + Math.abs(loop[i].y - topY) * 0.01;
+      if (loop[i].y < (topY + o.bottom[0].y) / 2 && score < bestScore) {
+        bestScore = score; best = i;
+      }
+    }
+    const ordered = [...loop.slice(best), ...loop.slice(0, best)];
+    ordered.push(ordered[0]);
+
+    const cum = [0];
+    for (let i = 1; i < ordered.length; i++) {
+      cum.push(cum[i - 1] + Math.hypot(
+        ordered[i].x - ordered[i - 1].x,
+        ordered[i].y - ordered[i - 1].y,
+      ));
+    }
+    return { points: ordered, cum, total: cum[cum.length - 1] };
+  }
+
+  const pointAtLength = (m, d) => {
+    const t = Math.max(0, Math.min(m.total, d));
+    let lo = 0, hi = m.cum.length - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (m.cum[mid] <= t) lo = mid; else hi = mid;
+    }
+    const seg = m.cum[hi] - m.cum[lo];
+    const u = seg < 1e-9 ? 0 : (t - m.cum[lo]) / seg;
+    return {
+      x: m.points[lo].x + (m.points[hi].x - m.points[lo].x) * u,
+      y: m.points[lo].y + (m.points[hi].y - m.points[lo].y) * u,
+      index: hi,
+    };
+  };
+
+  /** Extracts the run of the ring between two arc lengths. */
+  function traceRing(ctx, m, d0, d1, mirror) {
+    let from = Math.max(0, Math.min(m.total, d0));
+    let to = Math.max(0, Math.min(m.total, d1));
+    if (to - from <= 0.01) return;
+    if (mirror) { const a = m.total - to, b = m.total - from; from = a; to = b; }
+
+    const start = pointAtLength(m, from);
+    const end = pointAtLength(m, to);
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    for (let i = start.index; i < end.index; i++) {
+      ctx.lineTo(m.points[i].x, m.points[i].y);
+    }
+    ctx.lineTo(end.x, end.y);
+  }
+
+  /* =================================================================
+     6. SPRINGS — dampened settle, the Tier-4 balance lock.
+     ================================================================= */
+
+  class Spring {
+    constructor(value, stiffness = 330, damping = 26) {
+      this.value = value; this.target = value; this.v = 0;
+      this.k = stiffness; this.c = damping;
+    }
+    step(dt) {
+      // Sub-step for stability at long frame gaps.
+      const steps = Math.min(6, Math.max(1, Math.ceil(dt / 0.008)));
+      const h = dt / steps;
+      for (let i = 0; i < steps; i++) {
+        const a = -this.k * (this.value - this.target) - this.c * this.v;
+        this.v += a * h;
+        this.value += this.v * h;
+      }
+      return !this.atRest();
+    }
+    atRest() {
+      return Math.abs(this.value - this.target) < 0.0004 && Math.abs(this.v) < 0.0025;
+    }
+    snap(v) { this.value = v; this.target = v; this.v = 0; }
+  }
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  const springs = {
+    protein: new Spring(0), smartCarb: new Spring(0), vitalFiber: new Spring(0),
+    lock: new Spring(0, 240, 17),
+  };
+
+  /* =================================================================
+     7. PALETTE — read from the CSS tokens so the canvas follows the
+        viewer's theme rather than carrying its own hardcoded colours.
+     ================================================================= */
+
+  let palette = {};
+  function readPalette() {
+    const cs = getComputedStyle(document.documentElement);
+    const v = (n) => cs.getPropertyValue(n).trim();
+    palette = {
+      canvas: v("--canvas"),
+      structure: v("--structure"),
+      elevation: v("--elevation"),
+      hairline: v("--hairline"),
+      ink: v("--ink"),
+      inkSoft: v("--ink-soft"),
+      inkFaint: v("--ink-faint"),
+      ember: v("--ember-pure"),
+      olive: v("--olive"),
+      protein: v("--tone-protein"),
+      smartCarb: v("--tone-carb"),
+      vitalFiber: v("--tone-fiber"),
+      track: v("--track"),
+    };
+  }
+
+  function withAlpha(hex, a) {
+    const h = hex.replace("#", "");
+    const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+    const n = parseInt(full, 16);
+    if (Number.isNaN(n)) return hex;
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+  }
+
+  /* =================================================================
+     8. THE PLATTER CANVAS
+     ================================================================= */
+
+  const canvas = document.getElementById("platter");
+  const ctx = canvas.getContext("2d");
+  let cssW = 0, cssH = 0, ambientPhase = 0;
+
+  // The tray is a physical object, so its compartments are a fixed area split
+  // rather than something that moves with the food. The ring, not the tray,
+  // encodes the energy share.
+  let geometryCache = null;
+
+  function solveGeometry(rtl) {
+    const key = `${cssW}x${cssH}:${rtl}`;
+    if (geometryCache && geometryCache.key === key) return geometryCache;
+
+    const inset = RING_GAP * 2;
+    const a = Math.max(1, cssW / 2 - inset);
+    const b = Math.max(1, cssH / 2 - inset);
+    const cx = cssW / 2, cy = cssH / 2;
+
+    const dish = buildOutline(cx, cy, a, b);
+    const ring = buildOutline(cx, cy, a + RING_GAP, b + RING_GAP);
+    const totalArea = areaUpTo(dish, dish.maxX);
+
+    // Under RTL the tray mirrors physically, so the largest well sits on the
+    // right. Reassigning compartments to mirrored slots is not enough when
+    // the slots are different sizes.
+    const fractions = rtl ? [...AREA_FRACTIONS].reverse() : AREA_FRACTIONS;
+    const cut1 = xAtAreaFraction(dish, totalArea, fractions[0]);
+    const cut2 = xAtAreaFraction(dish, totalArea, fractions[0] + fractions[1]);
+    const bounds = [
+      [dish.minX, cut1],
+      [cut1, cut2],
+      [cut2, dish.maxX],
+    ];
+    const centroids = bounds.map(([l, r]) => {
+      const mx = (l + r) / 2;
+      return { x: mx, y: (topAt(dish, mx) + bottomAt(dish, mx)) / 2 };
+    });
+
+    geometryCache = {
+      key, dish, ring, bounds, centroids,
+      bow: DIVIDER_BOW * a,
+      metrics: buildRingMetrics(ring),
+    };
+    return geometryCache;
+  }
+
+  function resizeCanvas() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    cssW = Math.max(260, rect.width);
+    cssH = Math.round(Math.min(280, Math.max(190, cssW * 0.50)));
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    canvas.style.height = cssH + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    geometryCache = null;
+  }
+
+  function drawPlatter(summary) {
+    const rtl = state.lang === "ar";
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    // --- Tier 1: ambient warmth. Very low amplitude, 16s breath.
+    const breath = 0.5 + 0.5 * Math.sin(ambientPhase);
+    const gx = cssW / 2, gy = cssH / 2;
+    const grad = ctx.createRadialGradient(gx, gy, 8, gx, gy, cssW * 0.62);
+    grad.addColorStop(0, withAlpha(palette.ember, 0.055 + breath * 0.035));
+    grad.addColorStop(1, withAlpha(palette.ember, 0));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, cssW, cssH);
+
+    const g = solveGeometry(rtl);
+
+    // --- The dish
+    ctx.save();
+    ctx.shadowColor = withAlpha("#000000", 0.30);
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 8;
+    outlinePath(ctx, g.dish);
+    ctx.fillStyle = palette.structure;
+    ctx.fill();
+    ctx.restore();
+
+    outlinePath(ctx, g.dish);
+    ctx.strokeStyle = palette.hairline;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // --- Compartments
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+
+    for (let logical = 0; logical < 3; logical++) {
+      const slot = rtl ? 2 - logical : logical;
+      const [left, right] = g.bounds[slot];
+      const seg = SEGMENTS[logical];
+      const part = summary.parts[seg];
+      const tone = palette[seg];
+      const fill = springs[seg].value;
+
+      traceZone(ctx, g.dish, left, right, g.bow, slot !== 0, slot !== 2);
+      ctx.fillStyle = part
+        ? withAlpha(tone, 0.10 + 0.09 * fill)
+        : withAlpha(palette.ink, 0.035);
+      ctx.fill();
+
+      traceZone(ctx, g.dish, left, right, g.bow, slot !== 0, slot !== 2);
+      ctx.strokeStyle = part
+        ? withAlpha(tone, 0.30 + 0.5 * fill)
+        : withAlpha(palette.inkFaint, 0.42);
+      ctx.lineWidth = part ? 1.4 : 1;
+      ctx.stroke();
+
+      const c = g.centroids[slot];
+      const room = (right - left) - 16;
+
+      if (part) {
+        ctx.direction = rtl ? "rtl" : "ltr";
+        ctx.fillStyle = withAlpha(tone, 0.95);
+        ctx.font = `700 ${rtl ? 13 : 12}px ${rtl ? "'IBM Plex Sans Arabic'" : "'Plus Jakarta Sans'"}, sans-serif`;
+        ctx.fillText(`${Math.round(part.grams)} ${rtl ? "غ" : "g"}`, c.x, c.y - 9);
+
+        ctx.direction = "ltr"; // "175 kcal", never "kcal 175"
+        ctx.fillStyle = palette.inkSoft;
+        ctx.font = "600 10px 'Plus Jakarta Sans', sans-serif";
+        ctx.fillText(`${Math.round(kcalOf(part.m))} kcal`, c.x, c.y + 9);
+      } else {
+        ctx.direction = rtl ? "rtl" : "ltr";
+        ctx.fillStyle = palette.inkFaint;
+        const family = rtl ? "'IBM Plex Sans Arabic'" : "'Plus Jakarta Sans'";
+        const weight = rtl ? 500 : 600;
+        let size = rtl ? 12 : 11;
+        ctx.font = `${weight} ${size}px ${family}, sans-serif`;
+        // Shrink to fit rather than clip: the narrow greens compartment
+        // cannot hold "الألياف الحيوية" at full size.
+        while (size > 7.5 && ctx.measureText(t().segNames[seg]).width > room) {
+          size -= 0.5;
+          ctx.font = `${weight} ${size}px ${family}, sans-serif`;
+        }
+        ctx.fillText(t().segNames[seg], c.x, c.y);
+      }
+    }
+    ctx.direction = rtl ? "rtl" : "ltr";
+
+    // --- The macro ring, on the dish's own perimeter
+    const lock = springs.lock.value;
+    ctx.save();
+    if (lock > 0.0001) {
+      const scale = 1 + lock * 0.030;
+      ctx.translate(cssW / 2, cssH / 2);
+      ctx.scale(scale, scale);
+      ctx.translate(-cssW / 2, -cssH / 2);
+    }
+
+    const m = g.metrics;
+    traceRing(ctx, m, 0, m.total, false);
+    ctx.strokeStyle = palette.track;
+    ctx.lineWidth = 6;
+    ctx.lineCap = "butt";
+    ctx.stroke();
+
+    const live = SEGMENTS.filter((seg) => summary.parts[seg]);
+    if (live.length > 0) {
+      const gapFraction = 0.018;
+      const usable = 1 - gapFraction * live.length;
+      let cursor = gapFraction / 2;
+
+      ctx.lineCap = "round";
+      ctx.lineWidth = 6.5;
+      for (let logical = 0; logical < 3; logical++) {
+        const seg = SEGMENTS[logical];
+        if (!summary.parts[seg]) continue;
+        const allotted = usable * summary.shares[seg];
+        const swept = allotted * springs[seg].value;
+        if (swept > 0.0005) {
+          traceRing(ctx, m, cursor * m.total, (cursor + swept) * m.total, rtl);
+          ctx.strokeStyle = palette[seg];
+          ctx.stroke();
+        }
+        cursor += allotted + gapFraction;
+      }
+    }
+
+    if (lock > 0.004) {
+      traceRing(ctx, m, 0, m.total, false);
+      ctx.strokeStyle = withAlpha(palette.olive, 0.30 * lock);
+      ctx.lineWidth = 12;
+      ctx.lineCap = "butt";
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* =================================================================
+     9. FRAME LOOP
+     ================================================================= */
+
+  let lastT = 0;
+  let currentSummary = summarise(state.selection, state.scale);
+
+  function frame(now) {
+    const dt = lastT ? Math.min(0.05, (now - lastT) / 1000) : 0.016;
+    lastT = now;
+
+    if (!reduceMotion.matches) ambientPhase += dt * (Math.PI * 2 / 16);
+
+    for (const key of Object.keys(springs)) springs[key].step(dt);
+
+    drawPlatter(currentSummary);
+    requestAnimationFrame(frame);
+  }
+
+  /* =================================================================
+     10. RENDER — HTML side
+     ================================================================= */
+
+  const els = {
+    shell: document.getElementById("shell"),
+    curatedTrack: document.getElementById("curatedTrack"),
+    segments: document.getElementById("segments"),
+    plateline: document.getElementById("plateline"),
+    verdict: document.getElementById("verdict"),
+    verdictMark: document.getElementById("verdictMark"),
+    verdictHead: document.getElementById("verdictHead"),
+    verdictDetail: document.getElementById("verdictDetail"),
+    capKcal: document.getElementById("capKcal"),
+    capP: document.getElementById("capP"),
+    capC: document.getElementById("capC"),
+    capF: document.getElementById("capF"),
+    capGL: document.getElementById("capGL"),
+    cta: document.getElementById("cta"),
+    footnote: document.getElementById("footnote"),
+    summary: document.getElementById("platterSummary"),
+  };
+
+  const CHECK = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.4 8.4l3 3 6.2-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const DASH  = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 8h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
+  function buildCurated() {
+    els.curatedTrack.textContent = "";
+    for (const sig of SIGNATURES) {
+      const sel = {
+        protein: optionById("protein", sig.protein),
+        smartCarb: optionById("smartCarb", sig.smartCarb),
+        vitalFiber: optionById("vitalFiber", sig.vitalFiber),
+      };
+      const s = summarise(sel, state.scale);
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "curated";
+      btn.dataset.sig = sig.id;
+
+      const nm = document.createElement("span");
+      nm.className = "cname";
+      nm.textContent = nameOf(sig);
+
+      const kc = document.createElement("span");
+      kc.className = "ckcal";
+      kc.textContent = `${Math.round(s.totalKcal)} kcal · ${Math.round(s.total.p)}g protein`;
+
+      btn.append(nm, kc);
+      btn.addEventListener("click", () => applySignature(sig));
+      els.curatedTrack.append(btn);
+    }
+    markCuratedActive();
+  }
+
+  function markCuratedActive() {
+    const cur = SIGNATURES.find((sig) =>
+      state.selection.protein?.id === sig.protein &&
+      state.selection.smartCarb?.id === sig.smartCarb &&
+      state.selection.vitalFiber?.id === sig.vitalFiber);
+    for (const b of els.curatedTrack.children) {
+      b.dataset.active = String(!!cur && b.dataset.sig === cur.id);
+    }
+  }
+
+  function buildSegments() {
+    els.segments.textContent = "";
+    for (const seg of SEGMENTS) {
+      const rail = document.createElement("div");
+      rail.className = "rail";
+      const h = document.createElement("h2");
+      h.textContent = t().segNames[seg];
+      const hint = document.createElement("span");
+      hint.className = "hint";
+      hint.textContent = t().invite[seg];
+      rail.append(h, hint);
+
+      const track = document.createElement("div");
+      track.className = "track";
+      track.dataset.segment = seg;
+
+      for (const opt of CATALOG[seg]) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "chip";
+        btn.dataset.opt = opt.id;
+        btn.style.setProperty("--tone", `var(--tone-${seg})`);
+        btn.setAttribute("aria-pressed", String(state.selection[seg]?.id === opt.id));
+
+        const nm = document.createElement("span");
+        nm.className = "nm";
+        nm.textContent = nameOf(opt);
+
+        const meta = document.createElement("span");
+        meta.className = "meta";
+        const sw = document.createElement("span");
+        sw.className = "swatch";
+        const kc = document.createElement("span");
+        const pc = portioned(opt, state.scale);
+        kc.textContent = `${Math.round(kcalOf(pc.m))} kcal · ${Math.round(pc.grams)}g`;
+        meta.append(sw, kc);
+
+        const tags = document.createElement("span");
+        tags.className = "tags";
+        for (const label of opt.tags[state.lang]) {
+          const s = document.createElement("span");
+          s.className = "tag";
+          s.textContent = label;
+          tags.append(s);
+        }
+
+        btn.append(nm, meta, tags);
+
+        if (opt.alrg) {
+          const a = document.createElement("span");
+          a.className = "alrg";
+          a.textContent = opt.alrg[state.lang];
+          btn.append(a);
+        }
+
+        btn.addEventListener("pointerdown", () => haptic("selection"), { passive: true });
+        btn.addEventListener("click", () => select(seg, opt));
+        track.append(btn);
+      }
+
+      els.segments.append(rail, track);
+    }
+  }
+
+  function refreshChipFigures() {
+    for (const track of els.segments.querySelectorAll(".track")) {
+      const seg = track.dataset.segment;
+      for (const btn of track.children) {
+        const opt = optionById(seg, btn.dataset.opt);
+        if (!opt) continue;
+        const pc = portioned(opt, state.scale);
+        const kc = btn.querySelector(".meta span:last-child");
+        if (kc) kc.textContent = `${Math.round(kcalOf(pc.m))} kcal · ${Math.round(pc.grams)}g`;
+        btn.setAttribute("aria-pressed", String(state.selection[seg]?.id === opt.id));
+      }
+    }
+  }
+
+  function renderPlateline(summary) {
+    els.plateline.textContent = "";
+    for (const seg of SEGMENTS) {
+      const part = summary.parts[seg];
+      const row = document.createElement("div");
+      row.className = "row";
+      row.dataset.empty = String(!part);
+
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      dot.style.background = part ? `var(--tone-${seg})` : "var(--track)";
+
+      const nm = document.createElement("span");
+      nm.className = "nm";
+      nm.textContent = part ? nameOf(part.option) : t().empty[seg];
+
+      row.append(dot, nm);
+
+      if (part) {
+        const gm = document.createElement("span");
+        gm.className = "gm";
+        gm.textContent = `${Math.round(part.grams)}g · ${Math.round(kcalOf(part.m))} kcal`;
+        row.append(gm);
+      }
+      els.plateline.append(row);
+    }
+  }
+
+  function renderVerdict(summary) {
+    const locked = summary.complete;
+    els.verdict.dataset.locked = String(locked);
+    els.verdictMark.innerHTML = locked ? CHECK : DASH;
+    els.verdictMark.style.color = locked ? "var(--olive)" : "var(--ink-faint)";
+
+    if (locked) {
+      const f = t().framing[summary.framing];
+      els.verdictHead.textContent = f.h;
+      const release = t().release[summary.glycemicBand];
+      els.verdictDetail.textContent =
+        `${f.d} · ${release} · ${Math.round(summary.lower)}–${Math.round(summary.upper)} kcal`;
+    } else {
+      const remaining = SEGMENTS.length - summary.filled.length;
+      els.verdictHead.textContent = t().remaining(remaining);
+      els.verdictDetail.textContent = t().remainingDetail;
+    }
+  }
+
+  function renderCapsule(summary) {
+    els.capKcal.textContent = String(Math.round(summary.totalKcal));
+    els.capP.textContent = `${Math.round(summary.total.p)}g`;
+    els.capC.textContent = `${Math.round(summary.total.c)}g`;
+    els.capF.textContent = `${Math.round(summary.total.f)}g`;
+    els.capGL.textContent = `${Math.round(summary.glycemicLoad)}`;
+    els.cta.disabled = !summary.complete;
+    els.cta.textContent = summary.complete ? t().cta : t().ctaWaiting;
+  }
+
+  function renderAll() {
+    const summary = summarise(state.selection, state.scale);
+    currentSummary = summary;
+
+    for (const seg of SEGMENTS) {
+      springs[seg].target = summary.parts[seg] ? 1 : 0;
+      if (reduceMotion.matches) springs[seg].snap(springs[seg].target);
+    }
+
+    // Tier 4: the lock is a threshold, not a state. It fires on the crossing.
+    if (summary.complete && !state.wasComplete) {
+      springs.lock.snap(0);
+      springs.lock.value = 1;
+      springs.lock.target = 0;
+      springs.lock.v = 0;
+      if (reduceMotion.matches) springs.lock.snap(0);
+      haptic("medium");
+    } else if (!summary.complete && state.wasComplete) {
+      springs.lock.snap(0); // releasing is silent — no buzz punishes a change of mind
+    }
+    state.wasComplete = summary.complete;
+
+    renderPlateline(summary);
+    renderVerdict(summary);
+    renderCapsule(summary);
+    markCuratedActive();
+    refreshChipFigures();
+
+    const names = SEGMENTS
+      .map((s) => summary.parts[s] ? nameOf(summary.parts[s].option) : t().empty[s])
+      .join(" · ");
+    els.summary.textContent = `${names} — ${Math.round(summary.totalKcal)} kcal`;
+  }
+
+  /* =================================================================
+     11. INTENT
+     ================================================================= */
+
+  function select(seg, opt) {
+    if (state.selection[seg]?.id === opt.id) return; // re-tapping a chosen item is inert
+    state.selection[seg] = opt;
+    haptic("light");
+    renderAll();
+  }
+
+  function applySignature(sig) {
+    state.selection = {
+      protein: optionById("protein", sig.protein),
+      smartCarb: optionById("smartCarb", sig.smartCarb),
+      vitalFiber: optionById("vitalFiber", sig.vitalFiber),
+    };
+    haptic("light");
+    renderAll();
+  }
+
+  function setScale(scale) {
+    if (state.scale === scale) return;
+    state.scale = scale;
+    for (const b of document.querySelectorAll("[data-scale]")) {
+      b.setAttribute("aria-pressed", String(b.dataset.scale === scale));
+    }
+    haptic("light");
+    buildCurated();
+    renderAll();
+  }
+
+  function setLang(lang) {
+    if (state.lang === lang) return;
+    state.lang = lang;
+    applyLanguage();
+    buildCurated();
+    buildSegments();
+    renderAll();
+  }
+
+  function applyLanguage() {
+    const rtl = state.lang === "ar";
+    document.documentElement.setAttribute("lang", state.lang);
+    document.documentElement.setAttribute("dir", rtl ? "rtl" : "ltr");
+    document.body.dataset.lang = state.lang;
+    els.shell.closest("body")?.setAttribute("data-lang", state.lang);
+
+    for (const b of document.querySelectorAll("[data-lang-btn]")) {
+      b.setAttribute("aria-pressed", String(b.dataset.langBtn === state.lang));
+    }
+    for (const n of document.querySelectorAll("[data-i18n]")) {
+      const key = n.dataset.i18n;
+      if (t()[key]) n.textContent = t()[key];
+    }
+    els.footnote.innerHTML = t().footnoteHtml; // authored copy, not user input
+  }
+
+  for (const b of document.querySelectorAll("[data-scale]")) {
+    b.addEventListener("pointerdown", () => haptic("selection"), { passive: true });
+    b.addEventListener("click", () => setScale(b.dataset.scale));
+  }
+  for (const b of document.querySelectorAll("[data-lang-btn]")) {
+    b.addEventListener("click", () => setLang(b.dataset.langBtn));
+  }
+  els.cta.addEventListener("click", () => {
+    if (els.cta.disabled) return;
+    haptic("medium");
+    springs.lock.value = 1; springs.lock.target = 0; springs.lock.v = 0;
+  });
+
+  /* =================================================================
+     12. BOOT
+     ================================================================= */
+
+  readPalette();
+  applyLanguage();
+  buildCurated();
+  buildSegments();
+  resizeCanvas();
+  renderAll();
+  for (const seg of SEGMENTS) springs[seg].snap(state.selection[seg] ? 1 : 0);
+
+  const ro = new ResizeObserver(() => { resizeCanvas(); });
+  ro.observe(canvas.parentElement);
+
+  const themeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const onTheme = () => readPalette();
+  if (themeQuery.addEventListener) themeQuery.addEventListener("change", onTheme);
+  new MutationObserver(onTheme).observe(document.documentElement, {
+    attributes: true, attributeFilter: ["data-theme"],
+  });
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { readPalette(); });
+  }
+
+  requestAnimationFrame(frame);
+})();
+</script>
