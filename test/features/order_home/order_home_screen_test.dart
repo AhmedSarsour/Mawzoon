@@ -153,13 +153,30 @@ void main() {
       }
     });
 
-    testWidgets('the dock sits below the carousels',
+    testWidgets('the dock owns the bottom of the screen',
         (WidgetTester tester) async {
       await _pumpPhone(tester, _app());
-      final Rect dock = tester.getRect(find.byType(MacroCapsule));
-      final Rect carousel = tester.getRect(find.byType(CuratedTrack));
-      expect(dock.top, greaterThanOrEqualTo(carousel.bottom - 1));
-      expect(dock.bottom, closeTo(_phone.height, 1));
+
+      // Measured on the card itself, not on MacroCapsule — that includes the
+      // outer padding that produces the float in the first place.
+      final Rect card = tester.getRect(
+        find
+            .descendant(
+              of: find.byType(MacroCapsule),
+              matching: find.byType(DecoratedBox),
+            )
+            .first,
+      );
+
+      // It floats: inset from every edge rather than flush against the
+      // bottom, so it reads as a control resting on the page rather than
+      // chrome the page ends at.
+      expect(card.bottom, lessThan(_phone.height));
+      expect(card.bottom, greaterThan(_phone.height - 64));
+      expect(card.top, greaterThan(_phone.height / 2),
+          reason: 'the dock must sit inside the thumb zone',);
+      expect(card.left, greaterThan(0));
+      expect(card.right, lessThan(_phone.width));
     });
 
     testWidgets('the plate stays above the thumb zone',
@@ -638,7 +655,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
 
       final Finder ready = find.byWidgetPredicate(
-        (Widget w) => w is PressableScale && w.semanticLabel == 'أضف إلى السلة',
+        (Widget w) => w is PressableScale && w.semanticLabel == 'إتمام الطلب',
       );
       expect(ready, findsOneWidget);
       expect(tester.widget<PressableScale>(ready).enabled, isTrue);

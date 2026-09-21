@@ -11,6 +11,9 @@ import '../../../ui_primitives/interaction/pressable_scale.dart';
 import '../../../ui_primitives/plate/tri_partition_plate.dart';
 import '../../../ui_primitives/text/mawzoon_text.dart';
 import '../../../ui_primitives/theme/theme_context.dart';
+import '../../cart_checkout/domain/delivery_address.dart';
+import '../../cart_checkout/domain/order_draft.dart';
+import '../../cart_checkout/presentation/checkout_sheet.dart';
 import '../../curated_menu/domain/signature_plate.dart';
 import '../../curated_menu/presentation/curated_track.dart';
 import '../../plate_builder/application/plate_builder_controller.dart';
@@ -114,6 +117,35 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
     setState(() => _track = track);
   }
 
+  /// Opens checkout, and reports back when an order is placed.
+  ///
+  /// The screen does not know what placing an order means yet — there is no
+  /// backend — so it confirms and clears. Everything the confirmation needs is
+  /// already in the returned draft.
+  Future<void> _openCheckout() async {
+    final OrderDraft? placed = await showCheckoutSheet(
+      context,
+      selection: _controller.selection,
+    );
+    if (placed == null || !mounted) return;
+
+    MawzoonHaptics.medium();
+    final AppLanguage language = context.appLanguage;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: MawzoonText(
+          language == AppLanguage.arabic
+              ? 'تم استلام طلبك · ${placed.mode.estimate.resolve(language)}'
+              : 'Order in · ${placed.mode.estimate.resolve(language)}',
+          style: context.type.capsuleLabel,
+          color: context.colors.ink,
+        ),
+      ),
+    );
+    _controller.reset();
+    setState(() => _curatedPlateId = null);
+  }
+
   void _chooseCurated(SignaturePlate plate) {
     setState(() => _curatedPlateId = plate.id);
     _controller.replaceSelection(plate.selectionAt(_controller.scale));
@@ -153,6 +185,7 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
                         onCuratedChosen: _chooseCurated,
                         onArchitectTouched: () =>
                             setState(() => _curatedPlateId = null),
+                        onCheckout: _openCheckout,
                       ),
                     ),
                   ],
@@ -249,6 +282,7 @@ class _ThumbZone extends StatelessWidget {
     required this.curatedPlateId,
     required this.onCuratedChosen,
     required this.onArchitectTouched,
+    required this.onCheckout,
   });
 
   final OrderTrack track;
@@ -259,6 +293,7 @@ class _ThumbZone extends StatelessWidget {
   final String? curatedPlateId;
   final ValueChanged<SignaturePlate> onCuratedChosen;
   final VoidCallback onArchitectTouched;
+  final VoidCallback onCheckout;
 
   @override
   Widget build(BuildContext context) {
@@ -298,8 +333,14 @@ class _ThumbZone extends StatelessWidget {
         SizedBox(height: context.space.base),
         MacroCapsule(
           summary: summary,
+          total: summary.isComplete
+              ? PriceBreakdown.forPlate(
+                  selection: state.selection,
+                  mode: FulfilmentMode.delivery,
+                ).total
+              : null,
           onScaleChanged: controller.setScale,
-          onCheckout: () {},
+          onCheckout: onCheckout,
         ),
       ],
     );
