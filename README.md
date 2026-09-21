@@ -71,14 +71,14 @@ directional heuristic it is, with the published figure always kept beside it.
 | `core/` — glycemic engine | done, tested |
 | `ui_primitives/` — design tokens, AppTheme, MawzoonText | done, tested |
 | `ui_primitives/plate/` — tri-partition canvas, macro ring | done, tested |
-| `ui_primitives/` — macro capsule, ingredient carousel | next |
+| `ui_primitives/` — press response, snapping carousel, dock | done, tested |
+| `features/order_home/` — the dual-track ordering screen | done, tested |
 | `features/cart_checkout/` | not started |
 
-386 tests, `flutter analyze` clean.
+419 tests, `flutter analyze` clean.
 
-`flutter run` opens the plate workbench: the hero canvas driven by the real
-domain engine, so the geometry, the macro ring and the balance lock can be
-inspected on a device before the product shell exists.
+`flutter run` opens the ordering screen: both tracks, the hero canvas and the
+persistent dock, driven by the real domain engine.
 
 ## Getting started
 

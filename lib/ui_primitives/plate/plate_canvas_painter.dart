@@ -181,7 +181,17 @@ final class PlateCanvasPainter extends CustomPainter {
               : colors.inkFaint.withValues(alpha: 0.40),
       );
 
-      _paintCompartmentText(canvas, logical, centre, tone, isFilled);
+      // Compartments are different widths by design, so a label is measured
+      // against its own well rather than a shared guess. The greens
+      // compartment is the narrowest, and is where this first shows.
+      _paintCompartmentText(
+        canvas,
+        logical,
+        centre,
+        tone,
+        isFilled,
+        zone.getBounds().width - 16,
+      );
     }
   }
 
@@ -191,13 +201,21 @@ final class PlateCanvasPainter extends CustomPainter {
     Offset centre,
     Color tone,
     bool isFilled,
+    double room,
   ) {
     final String label = data.compartmentLabels[logical];
-    if (label.isEmpty) return;
+    if (label.isEmpty || room <= 0) return;
 
     if (!isFilled) {
-      _drawCentred(canvas, label, emptyStyle.copyWith(color: colors.inkFaint),
-          centre,);
+      // A prompt shrinks to fit rather than spilling across the dish.
+      // Ellipsising instead would leave "الألياف…", which names nothing.
+      _drawCentred(
+        canvas,
+        label,
+        _shrunkToFit(label, emptyStyle.copyWith(color: colors.inkFaint), room),
+        centre,
+        maxWidth: room,
+      );
       return;
     }
 
@@ -206,6 +224,7 @@ final class PlateCanvasPainter extends CustomPainter {
       label,
       labelStyle.copyWith(color: tone),
       centre.translate(0, -8),
+      maxWidth: room,
     );
     final String detail = data.compartmentDetails[logical];
     if (detail.isNotEmpty) {
@@ -216,16 +235,37 @@ final class PlateCanvasPainter extends CustomPainter {
         // "kcal 175".
         detailStyle.copyWith(color: colors.inkSoft),
         centre.translate(0, 9),
+        maxWidth: room,
         forceLtr: true,
       );
     }
   }
+
+  /// The largest size at or below [style] that fits [text] into [room].
+  TextStyle _shrunkToFit(String text, TextStyle style, double room) {
+    final double start = style.fontSize ?? 11;
+    for (double size = start; size >= _minimumLabelSize; size -= 0.5) {
+      final TextPainter probe = TextPainter(
+        text: TextSpan(text: text, style: style.copyWith(fontSize: size)),
+        textDirection: textDirection,
+        maxLines: 1,
+      )..layout();
+      final double width = probe.width;
+      probe.dispose();
+      if (width <= room) return style.copyWith(fontSize: size);
+    }
+    return style.copyWith(fontSize: _minimumLabelSize);
+  }
+
+  /// Below this a prompt is decoration rather than information.
+  static const double _minimumLabelSize = 7.5;
 
   void _drawCentred(
     Canvas canvas,
     String text,
     TextStyle style,
     Offset centre, {
+    required double maxWidth,
     bool forceLtr = false,
   }) {
     final TextPainter painter = TextPainter(
@@ -234,7 +274,7 @@ final class PlateCanvasPainter extends CustomPainter {
       textAlign: TextAlign.center,
       maxLines: 1,
       ellipsis: '…',
-    )..layout(maxWidth: 140);
+    )..layout(maxWidth: maxWidth);
     painter.paint(
       canvas,
       Offset(centre.dx - painter.width / 2, centre.dy - painter.height / 2),
