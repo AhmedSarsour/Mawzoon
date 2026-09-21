@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
 import '../../core/localization/localized_text.dart';
@@ -344,6 +345,32 @@ final class MawzoonTypography extends ThemeExtension<MawzoonTypography> {
       caption: s(caption, other.caption),
     );
   }
+
+  /// Every role, in declaration order, for equality and hashing.
+  List<Object> get _fields => <Object>[
+        language,
+        wordmark,
+        display,
+        sectionTitle,
+        dishName,
+        dishDescription,
+        body,
+        macroFigure,
+        macroUnit,
+        capsuleLabel,
+        buttonLabel,
+        tagLabel,
+        eyebrow,
+        caption,
+      ];
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MawzoonTypography && listEquals(other._fields, _fields);
+
+  @override
+  int get hashCode => Object.hashAll(_fields);
 
   @override
   String toString() => 'MawzoonTypography(${language.code})';

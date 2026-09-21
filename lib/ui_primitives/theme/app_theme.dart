@@ -127,14 +127,14 @@ abstract final class AppTheme {
       // the one appetite colour in the app should look like a thing you press.
       filledButtonTheme: FilledButtonThemeData(
         style: ButtonStyle(
-          backgroundColor: WidgetStateProperty.resolveWith((states) =>
-              states.contains(WidgetState.disabled)
-                  ? colors.structure
-                  : colors.ember,),
-          foregroundColor: WidgetStateProperty.resolveWith((states) =>
-              states.contains(WidgetState.disabled)
-                  ? colors.inkFaint
-                  : colors.onEmber,),
+          backgroundColor: DisabledAwareColor(
+            enabled: colors.ember,
+            disabled: colors.structure,
+          ),
+          foregroundColor: DisabledAwareColor(
+            enabled: colors.onEmber,
+            disabled: colors.inkFaint,
+          ),
           overlayColor: WidgetStatePropertyAll<Color>(
             colors.onEmber.withValues(alpha: 0.10),
           ),
@@ -275,4 +275,40 @@ abstract final class AppTheme {
       ),
     );
   }
+}
+
+/// A two-state colour with value equality.
+///
+/// `WidgetStateProperty.resolveWith` takes a closure, and a fresh closure is
+/// never equal to the last one. That makes the whole [ButtonStyle] unequal,
+/// which makes [ThemeData] unequal, which makes `AnimatedTheme` lerp the
+/// entire app for 200ms every time the theme is rebuilt. Two colours and an
+/// `==` cost nothing and keep the theme genuinely stable.
+@immutable
+final class DisabledAwareColor implements WidgetStateProperty<Color> {
+  /// Creates a colour that changes only when disabled.
+  const DisabledAwareColor({required this.enabled, required this.disabled});
+
+  /// The colour in every state but disabled.
+  final Color enabled;
+
+  /// The colour when the control is disabled.
+  final Color disabled;
+
+  @override
+  Color resolve(Set<WidgetState> states) =>
+      states.contains(WidgetState.disabled) ? disabled : enabled;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DisabledAwareColor &&
+          other.enabled == enabled &&
+          other.disabled == disabled;
+
+  @override
+  int get hashCode => Object.hash(enabled, disabled);
+
+  @override
+  String toString() => 'DisabledAwareColor($enabled / $disabled)';
 }

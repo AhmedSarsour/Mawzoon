@@ -57,6 +57,73 @@ void main() {
     });
   });
 
+  // ThemeData equality decides whether AnimatedTheme lerps the whole app for
+  // 200ms. A ThemeExtension without value equality, or a ButtonStyle built
+  // from a resolveWith closure, silently makes every theme rebuild animate
+  // every colour in the tree. This caught exactly that.
+  group('the theme is stable across rebuilds', () {
+    test('two identically-built themes compare equal', () {
+      expect(_dark(), _dark());
+      expect(_light(), _light());
+      expect(_dark(), isNot(_light()));
+    });
+
+    test('every token set has value equality', () {
+      final ThemeData a = _dark();
+      final ThemeData b = _dark();
+      expect(a.extension<MawzoonColors>(), b.extension<MawzoonColors>());
+      expect(a.extension<MawzoonTypography>(), b.extension<MawzoonTypography>());
+      expect(a.extension<MawzoonSpacing>(), b.extension<MawzoonSpacing>());
+      expect(a.extension<MawzoonElevation>(), b.extension<MawzoonElevation>());
+    });
+
+    test('token sets hash consistently', () {
+      expect(
+        _dark().extension<MawzoonColors>().hashCode,
+        _dark().extension<MawzoonColors>().hashCode,
+      );
+      expect(
+        _dark().extension<MawzoonSpacing>().hashCode,
+        _dark().extension<MawzoonSpacing>().hashCode,
+      );
+    });
+
+    test('a differing token set compares unequal', () {
+      final MawzoonColors base = MawzoonColors.dark();
+      expect(base.copyWith(ember: const Color(0xFF00FF00)), isNot(base));
+      expect(
+        const MawzoonSpacing.standard().copyWith(base: 99),
+        isNot(const MawzoonSpacing.standard()),
+      );
+    });
+
+    test('the button style survives a rebuild unchanged', () {
+      // resolveWith would fail this: a fresh closure is never equal.
+      expect(_dark().filledButtonTheme, _dark().filledButtonTheme);
+    });
+
+    test('a state-aware colour resolves and compares by value', () {
+      const DisabledAwareColor colour = DisabledAwareColor(
+        enabled: Color(0xFF111111),
+        disabled: Color(0xFF222222),
+      );
+      expect(colour.resolve(<WidgetState>{}), const Color(0xFF111111));
+      expect(
+        colour.resolve(<WidgetState>{WidgetState.disabled}),
+        const Color(0xFF222222),
+      );
+      expect(colour.resolve(<WidgetState>{WidgetState.hovered}),
+          const Color(0xFF111111),);
+      expect(
+        colour,
+        const DisabledAwareColor(
+          enabled: Color(0xFF111111),
+          disabled: Color(0xFF222222),
+        ),
+      );
+    });
+  });
+
   group('the canvas is the ground everywhere', () {
     test('scaffold and canvas colours both come from the 60% token', () {
       for (final ThemeData theme in <ThemeData>[_dark(), _light()]) {

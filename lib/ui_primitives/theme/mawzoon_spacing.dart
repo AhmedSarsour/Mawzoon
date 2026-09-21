@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
 /// The spacing and radius scale.
@@ -199,6 +200,35 @@ final class MawzoonSpacing extends ThemeExtension<MawzoonSpacing> {
       radiusPlatter: d(radiusPlatter, other.radiusPlatter),
     );
   }
+
+  /// Every value, in declaration order, for equality and hashing.
+  List<Object> get _fields => <Object>[
+        hairline,
+        micro,
+        tight,
+        snug,
+        base,
+        comfortable,
+        loose,
+        section,
+        chapter,
+        thumbTarget,
+        screenGutter,
+        dockPadding,
+        radiusSubtle,
+        radiusControl,
+        radiusSurface,
+        radiusCompartment,
+        radiusPlatter,
+      ];
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MawzoonSpacing && listEquals(other._fields, _fields);
+
+  @override
+  int get hashCode => Object.hashAll(_fields);
 
   @override
   String toString() => 'MawzoonSpacing(base: $base, gutter: $screenGutter)';

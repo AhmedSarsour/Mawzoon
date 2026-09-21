@@ -70,10 +70,15 @@ directional heuristic it is, with the published figure always kept beside it.
 | `features/curated_menu/` — signature plates | done, tested |
 | `core/` — glycemic engine | done, tested |
 | `ui_primitives/` — design tokens, AppTheme, MawzoonText | done, tested |
-| `ui_primitives/` — tri-partition canvas, macro capsule | next |
+| `ui_primitives/plate/` — tri-partition canvas, macro ring | done, tested |
+| `ui_primitives/` — macro capsule, ingredient carousel | next |
 | `features/cart_checkout/` | not started |
 
-319 tests, `flutter analyze` clean.
+386 tests, `flutter analyze` clean.
+
+`flutter run` opens the plate workbench: the hero canvas driven by the real
+domain engine, so the geometry, the macro ring and the balance lock can be
+inspected on a device before the product shell exists.
 
 ## Getting started
 

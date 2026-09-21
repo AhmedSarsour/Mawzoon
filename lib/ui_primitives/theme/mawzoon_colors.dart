@@ -280,6 +280,54 @@ final class MawzoonColors extends ThemeExtension<MawzoonColors> {
         inversePrimary: ember,
       );
 
+  // Value equality is load-bearing, not a nicety. ThemeData compares its
+  // extensions to decide whether the theme actually changed, and AnimatedTheme
+  // lerps the entire app for 200ms whenever it thinks it did. Without this,
+  // two structurally identical Mawzoon themes compare unequal and every
+  // rebuild that reconstructs the theme re-animates every colour in the tree.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MawzoonColors &&
+          other.brightness == brightness &&
+          other.canvas == canvas &&
+          other.structure == structure &&
+          other.structureElevated == structureElevated &&
+          other.hairline == hairline &&
+          other.ink == ink &&
+          other.inkSoft == inkSoft &&
+          other.inkFaint == inkFaint &&
+          other.ember == ember &&
+          other.onEmber == onEmber &&
+          other.olive == olive &&
+          other.onOlive == onOlive &&
+          other.protein == protein &&
+          other.carb == carb &&
+          other.fiber == fiber &&
+          other.track == track &&
+          other.scrim == scrim;
+
+  @override
+  int get hashCode => Object.hashAll(<Object>[
+        brightness,
+        canvas,
+        structure,
+        structureElevated,
+        hairline,
+        ink,
+        inkSoft,
+        inkFaint,
+        ember,
+        onEmber,
+        olive,
+        onOlive,
+        protein,
+        carb,
+        fiber,
+        track,
+        scrim,
+      ]);
+
   @override
   String toString() => 'MawzoonColors(${brightness.name})';
 }

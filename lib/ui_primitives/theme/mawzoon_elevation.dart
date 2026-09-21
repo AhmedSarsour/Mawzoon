@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
 /// The shadow ladder.
@@ -124,6 +125,25 @@ final class MawzoonElevation extends ThemeExtension<MawzoonElevation> {
       dock: s(dock, other.dock),
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MawzoonElevation &&
+          listEquals(other.flush, flush) &&
+          listEquals(other.resting, resting) &&
+          listEquals(other.lifted, lifted) &&
+          listEquals(other.platter, platter) &&
+          listEquals(other.dock, dock);
+
+  @override
+  int get hashCode => Object.hash(
+        Object.hashAll(flush),
+        Object.hashAll(resting),
+        Object.hashAll(lifted),
+        Object.hashAll(platter),
+        Object.hashAll(dock),
+      );
 
   @override
   String toString() => 'MawzoonElevation(4 levels)';
