@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mawzoon/features/plate_builder/domain/plate_builder_event.dart';
+import 'package:mawzoon/core/feedback/haptic_cue.dart';
 import 'package:mawzoon/ui_primitives/motion/motion.dart';
 
 /// Captures the haptic calls Flutter sends to the platform.

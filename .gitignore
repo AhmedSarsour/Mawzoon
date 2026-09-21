@@ -134,3 +134,9 @@ app.*.symbols
 /macos/
 /linux/
 /windows/
+
+# Golden-test failure artefacts. `flutter test` writes masterImage /
+# testImage / maskedDiff / isolatedDiff PNGs next to a failing golden. They
+# are debugging output for one run on one machine, not a baseline, and a
+# committed set of them makes every later diff unreadable.
+test/**/failures/

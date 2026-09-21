@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../features/plate_builder/domain/plate_builder_event.dart';
+import '../../core/feedback/haptic_cue.dart';
 import '../interaction/haptics.dart';
 import 'motion_tokens.dart';
 
@@ -117,6 +117,14 @@ class _TactileFeedbackWellState extends State<TactileFeedbackWell>
       enabled: widget.enabled,
       selected: widget.selected,
       label: widget.semanticLabel,
+      // A summary label replaces the subtree it summarises rather than being
+      // prepended to it. Without this, a station row reads as "Grill, Smoked
+      // Entrecôte, 140 grams" and then reads "Grill", "140 g", "Smoked
+      // Entrecôte", "Flame seared", "Medium rare" all over again — the well's
+      // whole reason for taking a label is to say the useful version once.
+      // A well given no label keeps its children, which is the only way an
+      // unlabelled one is readable at all.
+      excludeSemantics: widget.semanticLabel != null,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (_) => _down(),

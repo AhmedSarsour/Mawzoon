@@ -49,6 +49,11 @@ abstract final class MawzoonCatalog {
       DietaryTag.lowCarb,
     },
     surchargeMinorUnits: 800,
+    doneness: Doneness.mediumRare,
+    kitchenNote: LocalizedText(
+      ar: 'دخّن ١٢ دقيقة، ثم أرح ١٠ دقائق قبل التقطيع',
+      en: 'Smoke 12 min, rest 10 before slicing',
+    ),
   );
 
   /// Smashed lean beef — thin patties pressed hard onto the plancha.
@@ -75,6 +80,11 @@ abstract final class MawzoonCatalog {
       DietaryTag.highProtein,
       DietaryTag.lowCarb,
     },
+    doneness: Doneness.mediumWell,
+    kitchenNote: LocalizedText(
+      ar: 'اضغط على الصاج ٤٥ ثانية لكل وجه',
+      en: 'Press on the plancha, 45s a side',
+    ),
   );
 
   /// Herb-grilled chicken breast — the leanest anchor on the menu.
@@ -105,6 +115,11 @@ abstract final class MawzoonCatalog {
       DietaryTag.lowCarb,
       DietaryTag.spiced,
     },
+    doneness: Doneness.wellDone,
+    kitchenNote: LocalizedText(
+      ar: 'حرارة داخلية ٧٤°م — لا تتجاوزها',
+      en: 'Core 74°C, no further',
+    ),
   );
 
   /// Pulled slow-cooked beef — eight hours, then shredded.
@@ -135,6 +150,11 @@ abstract final class MawzoonCatalog {
       DietaryTag.lowCarb,
     },
     surchargeMinorUnits: 300,
+    doneness: Doneness.notApplicable,
+    kitchenNote: LocalizedText(
+      ar: 'من قِدر الطهي البطيء، سخّن مع مرقه',
+      en: 'From the slow pot, reheat in its own liquor',
+    ),
   );
 
   /// Kofta spiced mince — seven spices, onion and parsley.
@@ -162,6 +182,11 @@ abstract final class MawzoonCatalog {
       DietaryTag.lowCarb,
       DietaryTag.spiced,
     },
+    doneness: Doneness.wellDone,
+    kitchenNote: LocalizedText(
+      ar: 'ثلاثة أسياخ، اقلبها مرة واحدة فقط',
+      en: 'Three skewers, turn once only',
+    ),
   );
 
   /// Marinated chicken thighs — the most forgiving cut, and the juiciest.
@@ -189,6 +214,11 @@ abstract final class MawzoonCatalog {
       DietaryTag.lowCarb,
       DietaryTag.spiced,
     },
+    doneness: Doneness.wellDone,
+    kitchenNote: LocalizedText(
+      ar: 'الجلد لأسفل أولًا حتى يتقرمش',
+      en: 'Skin side down first until it crisps',
+    ),
   );
 
   // ---------------------------------------------------------------------
@@ -223,6 +253,10 @@ abstract final class MawzoonCatalog {
       DietaryTag.spiced,
     },
     glycemicIndex: 75,
+    kitchenNote: LocalizedText(
+      ar: 'قلاية هوائية ١٩٠°م، ١٤ دقيقة، رجّها مرة',
+      en: 'Air fryer 190°C, 14 min, shake once',
+    ),
   );
 
   /// Steamed basmati — genuinely low-GI, unlike short-grain white rice.
@@ -249,6 +283,10 @@ abstract final class MawzoonCatalog {
       DietaryTag.dairyFree,
     },
     glycemicIndex: 52,
+    kitchenNote: LocalizedText(
+      ar: 'بخار ١٨ دقيقة، ثم افرد الحبّات بالشوكة',
+      en: 'Steam 18 min, fork through before plating',
+    ),
   );
 
   /// Sweet potato wedges, oven-roasted.
@@ -278,6 +316,10 @@ abstract final class MawzoonCatalog {
       DietaryTag.dairyFree,
     },
     glycemicIndex: 63,
+    kitchenNote: LocalizedText(
+      ar: 'فرن ٢٠٠°م حتى تتكرمل الحواف',
+      en: 'Oven 200°C until the edges catch',
+    ),
   );
 
   /// Whole bulgur — the highest-fibre carb on the menu.
@@ -303,6 +345,10 @@ abstract final class MawzoonCatalog {
       DietaryTag.dairyFree,
     },
     glycemicIndex: 48,
+    kitchenNote: LocalizedText(
+      ar: 'من القِدر الساخن، لا تعيد تسخينه',
+      en: 'From the hot pot, never reheated',
+    ),
   );
 
   /// Toasted quinoa — toasted dry before it ever sees liquid.
@@ -329,6 +375,10 @@ abstract final class MawzoonCatalog {
       DietaryTag.dairyFree,
     },
     glycemicIndex: 53,
+    kitchenNote: LocalizedText(
+      ar: 'أضف النعناع والليمون عند التقديم فقط',
+      en: 'Mint and lemon at the pass, not before',
+    ),
   );
 
   /// Whole wheat pasta — the lowest-GI carb on the menu.
@@ -354,6 +404,10 @@ abstract final class MawzoonCatalog {
       DietaryTag.dairyFree,
     },
     glycemicIndex: 42,
+    kitchenNote: LocalizedText(
+      ar: 'ألدنتي، ثم قلّبها بزيت الزيتون والثوم',
+      en: 'Al dente, then through the garlic oil',
+    ),
   );
 
   // ---------------------------------------------------------------------
@@ -388,6 +442,10 @@ abstract final class MawzoonCatalog {
       DietaryTag.lowCarb,
     },
     glycemicIndex: 15,
+    kitchenNote: LocalizedText(
+      ar: 'الصلصة: ليمون وزيت زيتون، بعد الشيّ',
+      en: 'Dress with lemon and olive oil, after charring',
+    ),
   );
 
   /// Mediterranean sumac salad.
@@ -419,6 +477,10 @@ abstract final class MawzoonCatalog {
       DietaryTag.spiced,
     },
     glycemicIndex: 15,
+    kitchenNote: LocalizedText(
+      ar: 'الصلصة: سماق وليمون وزيت — تُضاف عند التقديم',
+      en: 'Sumac, lemon and oil — dressed at the pass',
+    ),
   );
 
   // ---------------------------------------------------------------------

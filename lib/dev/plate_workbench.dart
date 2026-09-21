@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/feedback/haptic_cue.dart';
 import '../core/localization/localized_text.dart';
 import '../core/menu/ingredient_option.dart';
 import '../core/menu/mawzoon_catalog.dart';

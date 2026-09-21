@@ -26,6 +26,7 @@ sealed class IngredientOption {
     required this.dietaryTags,
     this.glycemicIndex = 0,
     this.surchargeMinorUnits = 0,
+    this.kitchenNote,
   })  : assert(id.length > 0, 'id must not be empty'),
         assert(basePortionGrams > 0, 'basePortionGrams must be positive'),
         assert(surchargeMinorUnits >= 0, 'surcharge must be non-negative'),
@@ -57,6 +58,14 @@ sealed class IngredientOption {
 
   /// Dietary properties of the component.
   final Set<DietaryTag> dietaryTags;
+
+  /// A line for whoever is cooking this, not for the guest.
+  ///
+  /// Dressing, finish, holding instruction — the things a kitchen display has
+  /// to show and a menu never should. It lives here because a second table of
+  /// prep notes keyed by dish id is a second thing to keep in step, and it
+  /// will not be kept in step.
+  final LocalizedText? kitchenNote;
 
   /// Glycemic index on the standard 0-110 scale against pure glucose.
   ///
@@ -119,7 +128,16 @@ final class ProteinOption extends IngredientOption {
     required super.dietaryTags,
     super.glycemicIndex,
     super.surchargeMinorUnits,
+    super.kitchenNote,
+    this.doneness = Doneness.mediumWell,
   });
+
+  /// How this cut is cooked by default.
+  ///
+  /// Typed rather than a note, because the grill station reads it every single
+  /// ticket and a free-text field would eventually say "med" on one and
+  /// "Medium" on the next.
+  final Doneness doneness;
 
   @override
   PlateSegment get segment => PlateSegment.protein;
@@ -139,6 +157,7 @@ final class CarbOption extends IngredientOption {
     required super.dietaryTags,
     super.glycemicIndex,
     super.surchargeMinorUnits,
+    super.kitchenNote,
   });
 
   @override
@@ -159,6 +178,7 @@ final class FiberOption extends IngredientOption {
     required super.dietaryTags,
     super.glycemicIndex,
     super.surchargeMinorUnits,
+    super.kitchenNote,
   });
 
   @override

@@ -97,3 +97,34 @@ enum CookingMethod {
   /// The method's display name.
   final LocalizedText label;
 }
+
+/// How a cut comes off the grill.
+///
+/// The grill station reads this on every ticket, so it is an enum rather than
+/// a note — free text eventually says "med" on one ticket and "Medium" on the
+/// next, and a line cook reading forty tickets an hour should never have to
+/// interpret.
+enum Doneness {
+  /// Seared outside, cool red centre.
+  rare(label: LocalizedText(ar: 'نيئ', en: 'Rare')),
+
+  /// Warm red centre.
+  mediumRare(label: LocalizedText(ar: 'نصف نيئ', en: 'Medium rare')),
+
+  /// Pink throughout.
+  medium(label: LocalizedText(ar: 'وسط', en: 'Medium')),
+
+  /// Barely pink. The house default for beef.
+  mediumWell(label: LocalizedText(ar: 'وسط ناضج', en: 'Medium well')),
+
+  /// Cooked through. Mandatory for poultry.
+  wellDone(label: LocalizedText(ar: 'ناضج تمامًا', en: 'Well done')),
+
+  /// Not applicable — the cut is not grilled to a temperature.
+  notApplicable(label: LocalizedText(ar: '—', en: '—'));
+
+  const Doneness({required this.label});
+
+  /// The doneness as the grill station reads it.
+  final LocalizedText label;
+}

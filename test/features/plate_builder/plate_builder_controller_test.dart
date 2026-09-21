@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mawzoon/core/feedback/haptic_cue.dart';
 import 'package:mawzoon/core/menu/mawzoon_catalog.dart';
 import 'package:mawzoon/core/menu/plate_segment.dart';
 import 'package:mawzoon/core/nutrition/portion_scale.dart';

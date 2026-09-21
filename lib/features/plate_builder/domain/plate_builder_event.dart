@@ -1,26 +1,8 @@
+import '../../../core/feedback/haptic_cue.dart';
 import '../../../core/menu/ingredient_option.dart';
 import '../../../core/menu/plate_segment.dart';
 import '../../../core/nutrition/nutritional_summary.dart';
 import '../../../core/nutrition/portion_scale.dart';
-
-/// The physical feedback a transition deserves.
-///
-/// Named by *intent*, not by platform API, so the domain layer stays free of
-/// `package:flutter/services.dart`. The presentation layer maps each cue onto
-/// `HapticFeedback` exactly once.
-enum HapticCue {
-  /// A light tick while scrolling past candidates — `selectionClick()`.
-  selection,
-
-  /// A component committed to a compartment — `lightImpact()`.
-  light,
-
-  /// The balance lock. Reserved for one moment only — `mediumImpact()`.
-  medium,
-
-  /// No haptic. Silence is a deliberate choice, not an omission.
-  none,
-}
 
 /// A discrete thing that happened to the plate.
 ///

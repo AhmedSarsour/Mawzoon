@@ -1,0 +1,14 @@
+# Test tags.
+#
+# `@Tags(['golden'])` marks the suites that compare rendered pixels against a
+# committed PNG. Declaring the tag here does two things: it silences the
+# "a tag was used that wasn't specified" warning on every run, and it makes the
+# goldens skippable — `flutter test -x golden` — on a machine whose font
+# rasterisation does not match the one the baselines were generated on.
+tags:
+  golden:
+    description: >-
+      Renders a widget and compares it to a committed image. Regenerate with
+      `flutter test --update-goldens` and look at the result before committing
+      it; a golden that is updated without being inspected records the bug
+      rather than catching it.

@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 
+import '../../core/feedback/haptic_cue.dart';
 import '../../features/plate_builder/domain/plate_builder_event.dart';
 
 /// The single place a [HapticCue] becomes a platform call.
