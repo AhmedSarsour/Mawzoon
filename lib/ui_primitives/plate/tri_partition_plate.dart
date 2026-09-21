@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/menu/plate_segment.dart';
 import '../../core/nutrition/nutritional_summary.dart';
+import '../motion/motion.dart';
 import '../theme/mawzoon_colors.dart';
 import '../theme/mawzoon_typography.dart';
 import '../theme/theme_context.dart';
@@ -63,7 +64,7 @@ class TriPartitionPlate extends StatefulWidget {
 class _TriPartitionPlateState extends State<TriPartitionPlate>
     with TickerProviderStateMixin {
   late final PlateAnimationModel _model;
-  late final AnimationController _breath;
+  late final BalanceLockChoreography _lock;
   final PlateGeometryCache _geometry = PlateGeometryCache();
 
   @override
@@ -71,11 +72,8 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
     super.initState();
     _model = PlateAnimationModel(vsync: this);
     _model.seed(filled: _filled, arcTargets: _arcTargets);
-    _breath = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 16),
-    );
-    if (widget.showAmbientWarmth) _breath.repeat(reverse: true);
+    _lock = BalanceLockChoreography(vsync: this)
+      ..seed(locked: widget.summary.isComplete);
   }
 
   @override
@@ -83,11 +81,7 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
     super.didChangeDependencies();
     final bool reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     _model.reducedMotion = reduced;
-    if (reduced && _breath.isAnimating) {
-      _breath
-        ..stop()
-        ..value = 0.5;
-    }
+    _lock.reducedMotion = reduced;
   }
 
   @override
@@ -101,6 +95,9 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
     // an already-complete plate must not spend the milestone again.
     if (widget.summary.isComplete && !wasComplete) {
       _model.strikeLock();
+      _lock.lock();
+    } else if (!widget.summary.isComplete && wasComplete) {
+      _lock.release();
     }
   }
 
@@ -158,7 +155,7 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
 
   @override
   void dispose() {
-    _breath.dispose();
+    _lock.dispose();
     _model.dispose();
     super.dispose();
   }
@@ -176,19 +173,12 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            if (widget.showAmbientWarmth)
-              RepaintBoundary(
-                child: CustomPaint(
-                  painter: AmbientWarmthPainter(
-                    breath: _breath,
-                    colors: colors,
-                  ),
-                ),
-              ),
+            if (widget.showAmbientWarmth) AmbientGlow(color: colors.ember),
             RepaintBoundary(
               child: CustomPaint(
                 painter: PlateCanvasPainter(
                   model: _model,
+                  lock: _lock,
                   data: _data(context),
                   colors: colors,
                   textDirection: Directionality.of(context),

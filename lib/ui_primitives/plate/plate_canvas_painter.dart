@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
+import '../motion/motion.dart';
 import '../theme/mawzoon_colors.dart';
 import 'plate_animation_model.dart';
 import 'plate_geometry.dart';
@@ -86,6 +87,7 @@ final class PlateCanvasPainter extends CustomPainter {
   /// Creates the painter.
   PlateCanvasPainter({
     required this.model,
+    required this.lock,
     required this.data,
     required this.colors,
     required this.textDirection,
@@ -93,10 +95,16 @@ final class PlateCanvasPainter extends CustomPainter {
     required this.labelStyle,
     required this.detailStyle,
     required this.emptyStyle,
-  }) : super(repaint: model);
+  }) : super(repaint: Listenable.merge(<Listenable>[model, lock]));
 
-  /// The spring values, and the repaint source.
+  /// The spring values, and a repaint source.
   final PlateAnimationModel model;
+
+  /// The Tier 4 milestone, and the other repaint source.
+  ///
+  /// Merged with [model] rather than nested, so the lock's stroke and colour
+  /// arrive on the same frame as the arcs they modify.
+  final BalanceLockChoreography lock;
 
   /// The flattened plate snapshot.
   final PlateCanvasData data;
@@ -284,14 +292,17 @@ final class PlateCanvasPainter extends CustomPainter {
 
   /// Draws the macro arcs as genuine sub-paths of the dish's own perimeter.
   void _paintRing(Canvas canvas, PlateGeometry g) {
-    final double lock = model.lock.value;
+    final double swell = model.lock.value;
+    // Tier 4: the perimeter thickens and turns toward equilibrium together.
+    final double strokeWidth = arcStroke + lock.strokeGain;
+    final double olive = lock.oliveBlend;
 
     canvas.save();
-    if (lock > 0.0001) {
+    if (swell > 0.0001) {
       // The balance-lock settle: a 3% swell about the dish's centre. Scaling
       // the canvas rather than re-solving the geometry keeps this free.
       final Offset centre = g.ring.getBounds().center;
-      final double scale = 1 + lock * 0.030;
+      final double scale = 1 + swell * MawzoonMotion.lockSwell;
       canvas
         ..translate(centre.dx, centre.dy)
         ..scale(scale, scale)
@@ -302,7 +313,7 @@ final class PlateCanvasPainter extends CustomPainter {
       g.ring,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = arcStroke - 0.5
+        ..strokeWidth = strokeWidth - 0.5
         ..color = colors.track,
     );
 
@@ -322,22 +333,28 @@ final class PlateCanvasPainter extends CustomPainter {
             g.arc(cursor, cursor + swept, mirror: _mirror),
             Paint()
               ..style = PaintingStyle.stroke
-              ..strokeWidth = arcStroke
+              ..strokeWidth = strokeWidth
               ..strokeCap = StrokeCap.round
-              ..color = colors.toneForSegmentOrdinal(logical),
+              // The arcs keep their gaps, so the energy split stays legible
+              // by proportion even once the hue stops reporting it.
+              ..color = Color.lerp(
+                colors.toneForSegmentOrdinal(logical),
+                colors.olive,
+                olive,
+              )!,
           );
         }
         cursor += allotted + arcGapFraction;
       }
     }
 
-    if (lock > 0.004) {
+    if (swell > 0.004) {
       canvas.drawPath(
         g.ring,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 12
-          ..color = colors.olive.withValues(alpha: 0.30 * lock),
+          ..color = colors.olive.withValues(alpha: 0.30 * swell),
       );
     }
     canvas.restore();

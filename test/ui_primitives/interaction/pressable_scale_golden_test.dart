@@ -3,7 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mawzoon/ui_primitives/interaction/pressable_scale.dart';
+import 'package:mawzoon/ui_primitives/motion/motion.dart';
 
 /// Verifies the press compression by rendering it.
 ///
@@ -35,7 +35,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(260, 160));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
-      _frame(PressableScale(onPressed: () {}, child: _target)),
+      _frame(TactileFeedbackWell(onPressed: () {}, child: _target)),
     );
     await tester.pump();
     await expectLater(
@@ -48,10 +48,10 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(260, 160));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
-      _frame(PressableScale(onPressed: () {}, child: _target)),
+      _frame(TactileFeedbackWell(onPressed: () {}, child: _target)),
     );
     final TestGesture gesture =
-        await tester.startGesture(tester.getCenter(find.byType(PressableScale)));
+        await tester.startGesture(tester.getCenter(find.byType(TactileFeedbackWell)));
     addTearDown(() async {
       await gesture.up();
     });

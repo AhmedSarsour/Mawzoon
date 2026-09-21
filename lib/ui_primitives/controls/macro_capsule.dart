@@ -5,7 +5,7 @@ import '../../core/nutrition/macro_targets.dart';
 import '../../core/nutrition/nutritional_summary.dart';
 import '../../core/nutrition/portion_scale.dart';
 import '../../core/pricing/money.dart';
-import '../interaction/pressable_scale.dart';
+import '../motion/motion.dart';
 import '../text/mawzoon_text.dart';
 import '../theme/theme_context.dart';
 import 'volume_toggle.dart';
@@ -334,7 +334,7 @@ class _BalanceLockActionState extends State<BalanceLockAction>
         scale: _spring.value,
         child: child,
       ),
-      child: PressableScale(
+      child: TactileFeedbackWell(
         onPressed: widget.ready ? widget.onPressed : null,
         enabled: widget.ready,
         semanticLabel: widget.label,

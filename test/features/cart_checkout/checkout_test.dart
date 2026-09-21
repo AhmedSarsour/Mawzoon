@@ -11,7 +11,7 @@ import 'package:mawzoon/features/cart_checkout/domain/saved_places.dart';
 import 'package:mawzoon/features/cart_checkout/presentation/checkout_sheet.dart';
 import 'package:mawzoon/features/plate_builder/domain/plate_selection.dart';
 import 'package:mawzoon/ui_primitives/controls/macro_capsule.dart';
-import 'package:mawzoon/ui_primitives/interaction/pressable_scale.dart';
+import 'package:mawzoon/ui_primitives/motion/motion.dart';
 import 'package:mawzoon/ui_primitives/theme/theme.dart';
 
 const BundledMawzoonFonts _fonts = BundledMawzoonFonts();
@@ -211,10 +211,10 @@ void main() {
       expect(find.text(PaymentMethod.wallet.label.ar), findsOneWidget);
 
       final Finder confirm = find.byWidgetPredicate(
-        (Widget w) => w is PressableScale && w.semanticLabel == 'تأكيد الطلب',
+        (Widget w) => w is TactileFeedbackWell && w.semanticLabel == 'تأكيد الطلب',
       );
       expect(confirm, findsOneWidget);
-      expect(tester.widget<PressableScale>(confirm).enabled, isTrue,
+      expect(tester.widget<TactileFeedbackWell>(confirm).enabled, isTrue,
           reason: 'the second tap must be live on arrival',);
     });
 
@@ -254,7 +254,7 @@ void main() {
 
       await tester.tap(
         find.byWidgetPredicate(
-          (Widget w) => w is PressableScale && w.semanticLabel == 'تأكيد الطلب',
+          (Widget w) => w is TactileFeedbackWell && w.semanticLabel == 'تأكيد الطلب',
         ),
       );
       await tester.pump();
@@ -308,9 +308,9 @@ void main() {
       await open(tester, plate: _partialPlate);
 
       final Finder confirm = find.byWidgetPredicate(
-        (Widget w) => w is PressableScale && w.semanticLabel == 'تأكيد الطلب',
+        (Widget w) => w is TactileFeedbackWell && w.semanticLabel == 'تأكيد الطلب',
       );
-      expect(tester.widget<PressableScale>(confirm).enabled, isFalse);
+      expect(tester.widget<TactileFeedbackWell>(confirm).enabled, isFalse);
       // Not a grey button sitting silent: it names the thing that is missing.
       expect(find.text('أكمل أقسام الطبق الثلاثة'), findsOneWidget);
     });
@@ -388,10 +388,10 @@ void main() {
         (WidgetTester tester) async {
       await pumpDock(tester, plate: _partialPlate);
       final Finder action = find.byWidgetPredicate(
-        (Widget w) => w is PressableScale && w.semanticLabel == 'أكمل الأقسام',
+        (Widget w) => w is TactileFeedbackWell && w.semanticLabel == 'أكمل الأقسام',
       );
       expect(action, findsOneWidget);
-      expect(tester.widget<PressableScale>(action).enabled, isFalse);
+      expect(tester.widget<TactileFeedbackWell>(action).enabled, isFalse);
     });
 
     testWidgets('the action carries the total once it is live',

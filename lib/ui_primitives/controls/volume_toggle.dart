@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/localization/localized_text.dart';
 import '../../core/nutrition/portion_scale.dart';
-import '../interaction/pressable_scale.dart';
+import '../motion/motion.dart';
 import '../text/mawzoon_text.dart';
 import '../theme/mawzoon_spacing.dart';
 import '../theme/theme_context.dart';
@@ -78,7 +78,7 @@ class _VolumeOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppLanguage language = context.appLanguage;
-    return PressableScale(
+    return TactileFeedbackWell(
       onPressed: onPressed,
       selected: selected,
       semanticLabel: option.label.resolve(language),

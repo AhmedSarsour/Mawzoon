@@ -5,7 +5,7 @@ import '../../../core/menu/ingredient_option.dart';
 import '../../../core/pricing/money.dart';
 import '../../../ui_primitives/controls/macro_capsule.dart';
 import '../../../ui_primitives/interaction/haptics.dart';
-import '../../../ui_primitives/interaction/pressable_scale.dart';
+import '../../../ui_primitives/motion/motion.dart';
 import '../../../ui_primitives/text/mawzoon_text.dart';
 import '../../../ui_primitives/theme/theme_context.dart';
 import '../../plate_builder/domain/plate_selection.dart';
@@ -445,7 +445,7 @@ class _Choice extends StatelessWidget {
   final String semanticLabel;
 
   @override
-  Widget build(BuildContext context) => PressableScale(
+  Widget build(BuildContext context) => TactileFeedbackWell(
         onPressed: onPressed,
         selected: selected,
         semanticLabel: semanticLabel,
@@ -553,7 +553,7 @@ class _ConfirmBar extends StatelessWidget {
             ],
           ),
           SizedBox(height: context.space.base),
-          PressableScale(
+          TactileFeedbackWell(
             onPressed: ready ? onPlace : null,
             enabled: ready,
             semanticLabel: language == AppLanguage.arabic

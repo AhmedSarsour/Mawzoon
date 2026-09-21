@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/localization/localized_text.dart';
 import '../../../core/nutrition/nutritional_summary.dart';
 import '../../../core/nutrition/portion_scale.dart';
-import '../../../ui_primitives/interaction/pressable_scale.dart';
+import '../../../ui_primitives/motion/motion.dart';
 import '../../../ui_primitives/interaction/snap_carousel.dart';
 import '../../../ui_primitives/text/mawzoon_text.dart';
 import '../../../ui_primitives/theme/theme_context.dart';
@@ -98,7 +98,7 @@ class SignaturePlateCard extends StatelessWidget {
     final AppLanguage language = context.appLanguage;
     final NutritionalSummary summary = plate.summaryAt(scale);
 
-    return PressableScale(
+    return TactileFeedbackWell(
       onPressed: onPressed,
       selected: selected,
       semanticLabel: '${plate.name.resolve(language)}, '

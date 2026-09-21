@@ -7,7 +7,7 @@ import '../../../core/menu/plate_segment.dart';
 import '../../../core/nutrition/nutritional_summary.dart';
 import '../../../ui_primitives/controls/macro_capsule.dart';
 import '../../../ui_primitives/interaction/haptics.dart';
-import '../../../ui_primitives/interaction/pressable_scale.dart';
+import '../../../ui_primitives/motion/motion.dart';
 import '../../../ui_primitives/plate/tri_partition_plate.dart';
 import '../../../ui_primitives/text/mawzoon_text.dart';
 import '../../../ui_primitives/theme/theme_context.dart';
@@ -365,7 +365,7 @@ class _TrackSwitch extends StatelessWidget {
           Expanded(
             child: Padding(
             padding: EdgeInsetsDirectional.only(end: context.space.snug),
-            child: PressableScale(
+            child: TactileFeedbackWell(
               onPressed: () => onChanged(option),
               selected: option == track,
               semanticLabel: option.label.resolve(language),

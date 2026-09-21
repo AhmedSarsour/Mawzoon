@@ -18,7 +18,7 @@ import 'package:mawzoon/ui_primitives/controls/macro_capsule.dart';
 import 'package:mawzoon/ui_primitives/controls/volume_toggle.dart';
 import 'package:mawzoon/ui_primitives/interaction/haptics.dart';
 import 'package:mawzoon/ui_primitives/plate/tri_partition_plate.dart';
-import 'package:mawzoon/ui_primitives/interaction/pressable_scale.dart';
+import 'package:mawzoon/ui_primitives/motion/motion.dart';
 import 'package:mawzoon/ui_primitives/theme/theme.dart';
 
 const BundledMawzoonFonts _fonts = BundledMawzoonFonts();
@@ -207,7 +207,7 @@ void main() {
             body: Center(
               child: RepaintBoundary(
                 key: const Key('boundary'),
-                child: PressableScale(
+                child: TactileFeedbackWell(
                   onPressed: () {},
                   child: Container(
                     width: 180,
@@ -226,7 +226,7 @@ void main() {
       expect(resting.width, greaterThan(0));
 
       final TestGesture gesture = await tester
-          .startGesture(tester.getCenter(find.byType(PressableScale)));
+          .startGesture(tester.getCenter(find.byType(TactileFeedbackWell)));
       // Two frames: the first only starts the ticker at zero elapsed time.
       await tester.pump(const Duration(milliseconds: 50));
       await tester.pump(const Duration(milliseconds: 200));
@@ -234,12 +234,12 @@ void main() {
       final Size pressed = await _paintedExtent(tester);
       expect(
         pressed.width / resting.width,
-        closeTo(PressableScale.defaultPressedScale, 0.01),
+        closeTo(MawzoonMotion.tactileCompression, 0.01),
         reason: 'pressed ${pressed.width} vs resting ${resting.width}',
       );
       expect(
         pressed.height / resting.height,
-        closeTo(PressableScale.defaultPressedScale, 0.01),
+        closeTo(MawzoonMotion.tactileCompression, 0.01),
       );
 
       await gesture.up();
@@ -259,7 +259,7 @@ void main() {
           theme: AppTheme.dark(fonts: _fonts),
           home: Scaffold(
             body: Center(
-              child: PressableScale(
+              child: TactileFeedbackWell(
                 onPressed: () => taps++,
                 child: const SizedBox(width: 120, height: 60),
               ),
@@ -269,7 +269,7 @@ void main() {
       );
 
       final TestGesture gesture = await tester
-          .startGesture(tester.getCenter(find.byType(PressableScale)));
+          .startGesture(tester.getCenter(find.byType(TactileFeedbackWell)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 150));
       await gesture.cancel();
@@ -281,7 +281,7 @@ void main() {
         tester
             .widget<Transform>(
               find.descendant(
-                of: find.byType(PressableScale),
+                of: find.byType(TactileFeedbackWell),
                 matching: find.byType(Transform),
               ),
             )
@@ -300,7 +300,7 @@ void main() {
           theme: AppTheme.dark(fonts: _fonts),
           home: const Scaffold(
             body: Center(
-              child: PressableScale(
+              child: TactileFeedbackWell(
                 enabled: false,
                 child: SizedBox(width: 120, height: 60),
               ),
@@ -311,7 +311,7 @@ void main() {
       haptics.clear();
 
       final TestGesture gesture = await tester
-          .startGesture(tester.getCenter(find.byType(PressableScale)));
+          .startGesture(tester.getCenter(find.byType(TactileFeedbackWell)));
       await tester.pump(const Duration(milliseconds: 150));
 
       expect(haptics.calls, isEmpty);
@@ -319,7 +319,7 @@ void main() {
         tester
             .widget<Transform>(
               find.descendant(
-                of: find.byType(PressableScale),
+                of: find.byType(TactileFeedbackWell),
                 matching: find.byType(Transform),
               ),
             )
@@ -542,7 +542,7 @@ void main() {
       // Jump back to protein via its step pill.
       final Finder proteinPill = find.byWidgetPredicate(
         (Widget w) =>
-            w is PressableScale &&
+            w is TactileFeedbackWell &&
             (w.semanticLabel ?? '')
                 .startsWith(PlateSegment.protein.label.ar),
       );
@@ -572,7 +572,7 @@ void main() {
 
       final Finder proteinPill = find.byWidgetPredicate(
         (Widget w) =>
-            w is PressableScale &&
+            w is TactileFeedbackWell &&
             (w.semanticLabel ?? '')
                 .startsWith(PlateSegment.protein.label.ar),
       );
@@ -643,10 +643,10 @@ void main() {
       );
 
       Finder action() => find.byWidgetPredicate(
-            (Widget w) => w is PressableScale && w.semanticLabel == 'أكمل الأقسام',
+            (Widget w) => w is TactileFeedbackWell && w.semanticLabel == 'أكمل الأقسام',
           );
       expect(action(), findsOneWidget);
-      expect(tester.widget<PressableScale>(action()).enabled, isFalse);
+      expect(tester.widget<TactileFeedbackWell>(action()).enabled, isFalse);
 
       controller
         ..select(MawzoonCatalog.herbGrilledBreast)
@@ -655,10 +655,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
 
       final Finder ready = find.byWidgetPredicate(
-        (Widget w) => w is PressableScale && w.semanticLabel == 'إتمام الطلب',
+        (Widget w) => w is TactileFeedbackWell && w.semanticLabel == 'إتمام الطلب',
       );
       expect(ready, findsOneWidget);
-      expect(tester.widget<PressableScale>(ready).enabled, isTrue);
+      expect(tester.widget<TactileFeedbackWell>(ready).enabled, isTrue);
     });
   });
 

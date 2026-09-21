@@ -6,7 +6,7 @@ import '../../../core/menu/ingredient_option.dart';
 import '../../../core/menu/mawzoon_catalog.dart';
 import '../../../core/menu/plate_segment.dart';
 import '../../../core/nutrition/portion_scale.dart';
-import '../../../ui_primitives/interaction/pressable_scale.dart';
+import '../../../ui_primitives/motion/motion.dart';
 import '../../../ui_primitives/interaction/snap_carousel.dart';
 import '../../../ui_primitives/text/mawzoon_text.dart';
 import '../../../ui_primitives/theme/theme_context.dart';
@@ -199,7 +199,7 @@ class _StepPill extends StatelessWidget {
     final Color tone = context.colors.toneForSegmentOrdinal(segment.ordinal);
     final bool filled = chosen != null;
 
-    return PressableScale(
+    return TactileFeedbackWell(
       onPressed: onPressed,
       selected: active,
       semanticLabel: '${segment.label.resolve(language)}'
@@ -289,7 +289,7 @@ class IngredientChip extends StatelessWidget {
     final Color tone = context.colors.toneForSegmentOrdinal(option.segment.ordinal);
     final PortionedComponent portion = option.atScale(scale);
 
-    return PressableScale(
+    return TactileFeedbackWell(
       onPressed: onPressed,
       selected: selected,
       semanticLabel: '${option.name.resolve(language)}, '

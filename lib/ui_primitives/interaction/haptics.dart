@@ -41,5 +41,20 @@ abstract final class MawzoonHaptics {
   static void medium() => play(HapticCue.medium);
 
   /// Routes a domain event to its cue.
-  static void forEvent(PlateBuilderEvent event) => play(event.haptic);
+  ///
+  /// [HapticCue.medium] is deliberately **not** played here. The balance lock
+  /// is Tier 4's to fire, from the same call that starts the stroke and the
+  /// colour, so the three channels cannot drift apart — see
+  /// `BalanceLockChoreography`. The event still carries the cue, because the
+  /// event is the record of what happened; this function is only the mapping
+  /// used by screens, and a screen that also played it would buzz twice for
+  /// one milestone.
+  ///
+  /// A surface that shows the plate without the canvas — a cart row, a
+  /// re-order confirmation — should fire [medium] itself on the same
+  /// transition.
+  static void forEvent(PlateBuilderEvent event) {
+    if (event.haptic == HapticCue.medium) return;
+    play(event.haptic);
+  }
 }

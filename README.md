@@ -74,8 +74,9 @@ directional heuristic it is, with the published figure always kept beside it.
 | `ui_primitives/` — press response, snapping carousel, dock | done, tested |
 | `features/order_home/` — the dual-track ordering screen | done, tested |
 | `features/cart_checkout/` — pricing, dock, two-tap sheet | done, tested |
+| `ui_primitives/motion/` — the four-tier kinetic engine | done, tested |
 
-467 tests, `flutter analyze` clean.
+500 tests, `flutter analyze` clean.
 
 `flutter run` opens the ordering screen: both tracks, the hero canvas and the
 persistent dock, driven by the real domain engine.
