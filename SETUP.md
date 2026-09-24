@@ -63,6 +63,17 @@ listed in `.gitignore` and stay untracked.
 If `flutter create` reports that it would overwrite a file you care about,
 stop and check the diff rather than forcing it.
 
+Then add what the post-meal notification needs (boot receiver, desugaring,
+iOS notification delegate). Safe to run twice; it fails loudly if a template
+has changed:
+
+```bash
+dart run tool/patch_platforms.dart
+```
+
+Without this step the app still works: the post-meal question waits on the
+home screen instead of arriving as a notification.
+
 ## 5. Arabic typography on device
 
 The app is bilingual with Arabic as the primary language. Two things to get

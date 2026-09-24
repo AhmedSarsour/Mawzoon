@@ -6,15 +6,21 @@ enum FulfilmentMode {
   delivery(
     label: LocalizedText(ar: 'توصيل', en: 'Delivery'),
     estimate: LocalizedText(ar: '٣٥–٤٥ دقيقة', en: '35–45 min'),
+    readyWithin: Duration(minutes: 45),
   ),
 
   /// Collected from the counter.
   pickup(
     label: LocalizedText(ar: 'استلام', en: 'Pickup'),
     estimate: LocalizedText(ar: '١٢–١٥ دقيقة', en: '12–15 min'),
+    readyWithin: Duration(minutes: 15),
   );
 
-  const FulfilmentMode({required this.label, required this.estimate});
+  const FulfilmentMode({
+    required this.label,
+    required this.estimate,
+    required this.readyWithin,
+  });
 
   /// The mode's name.
   final LocalizedText label;
@@ -22,6 +28,10 @@ enum FulfilmentMode {
   /// How long it typically takes. Shown up front, because the real question
   /// behind "delivery or pickup" is "when do I eat".
   final LocalizedText estimate;
+
+  /// The upper end of [estimate], as a duration. Kept beside the text so the
+  /// two are edited together.
+  final Duration readyWithin;
 }
 
 /// A place the guest has had food sent to before.

@@ -75,11 +75,18 @@ directional heuristic it is, with the published figure always kept beside it.
 | `features/order_home/` — the dual-track ordering screen | done, tested |
 | `features/cart_checkout/` — pricing, dock, two-tap sheet | done, tested |
 | `ui_primitives/motion/` — the four-tier kinetic engine | done, tested |
+| `features/kitchen_display/` — KDS and assembly routing | done, tested |
+| `features/manager_suite/` — calibration, inventory, sold-out rails | done, tested |
+| `features/mindful_satiety/` — post-meal check-in and what it learns | done, tested |
 
-500 tests, `flutter analyze` clean.
+`flutter analyze` clean. Goldens are machine-specific: `flutter test -x golden`
+on any machine other than the one that recorded them.
 
 `flutter run` opens the ordering screen: both tracks, the hero canvas and the
 persistent dock, driven by the real domain engine.
+
+The post-meal check-in keeps everything on the phone. Nothing is sent
+anywhere; uninstalling the app deletes it.
 
 ## Getting started
 

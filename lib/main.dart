@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'core/localization/localized_text.dart';
 import 'ui_primitives/menu/menu_scope.dart';
 import 'features/manager_suite/application/manager_suite_controller.dart';
 import 'features/manager_suite/domain/inventory_ledger.dart';
+import 'features/mindful_satiety/application/reflection_controller.dart';
+import 'features/mindful_satiety/data/reflection_notifier.dart';
+import 'features/mindful_satiety/data/reflection_store.dart';
+import 'features/mindful_satiety/presentation/reflection_surfaces.dart';
 import 'features/order_home/presentation/order_home_screen.dart';
 import 'ui_primitives/theme/theme.dart';
 
@@ -39,9 +45,22 @@ class _MawzoonAppState extends State<MawzoonApp> {
     ledger: InventoryLedger.stockedFor(60),
   );
 
+  /// The post-meal loop. Everything it keeps stays on this phone.
+  late final ReflectionController _reflections = ReflectionController(
+    store: SharedPreferencesReflectionStore(),
+    notifier: LocalReflectionNotifier(),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_reflections.start());
+  }
+
   @override
   void dispose() {
     _menu.dispose();
+    _reflections.dispose();
     super.dispose();
   }
 
@@ -73,7 +92,7 @@ class _MawzoonAppState extends State<MawzoonApp> {
           builder: (BuildContext context, Widget? child) => MenuScope(
             book: _menu.book,
             availability: _menu.availability,
-            child: child!,
+            child: ReflectionScope(controller: _reflections, child: child!),
           ),
           child: const OrderHomeScreen(),
         ),

@@ -16,6 +16,11 @@ import '../../cart_checkout/domain/order_draft.dart';
 import '../../cart_checkout/presentation/checkout_sheet.dart';
 import '../../curated_menu/domain/signature_plate.dart';
 import '../../curated_menu/presentation/curated_track.dart';
+import '../../mindful_satiety/application/reflection_controller.dart';
+import '../../mindful_satiety/domain/reflection_journal.dart';
+import '../../mindful_satiety/domain/satiety_insight.dart';
+import '../../mindful_satiety/presentation/reflection_sheet.dart';
+import '../../mindful_satiety/presentation/reflection_surfaces.dart';
 import '../../plate_builder/application/plate_builder_controller.dart';
 import '../../plate_builder/domain/plate_builder_event.dart';
 import '../../plate_builder/domain/plate_builder_state.dart';
@@ -131,6 +136,9 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
 
     MawzoonHaptics.medium();
     final AppLanguage language = context.appLanguage;
+    unawaited(
+      ReflectionScope.maybeOf(context)?.orderPlaced(placed, language: language),
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: MawzoonText(
@@ -146,6 +154,24 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
     setState(() => _curatedPlateId = null);
   }
 
+  bool _reflectionOpen = false;
+
+  /// Opens the post-meal question. Guarded so a notification tap and a card
+  /// tap in the same frame can't stack two sheets.
+  Future<void> _openReflection(ReflectionController reflections) async {
+    final PendingReflection? pending = reflections.askable;
+    reflections.consumeSheetRequest();
+    if (pending == null || _reflectionOpen) return;
+    _reflectionOpen = true;
+    await showReflectionSheet(
+      context,
+      pending: pending,
+      onAnswered: reflections.answer,
+      onSkipped: reflections.skip,
+    );
+    _reflectionOpen = false;
+  }
+
   void _chooseCurated(SignaturePlate plate) {
     setState(() => _curatedPlateId = plate.id);
     _controller.replaceSelection(plate.selectionAt(_controller.scale));
@@ -154,6 +180,12 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ReflectionController? reflections = ReflectionScope.maybeOf(context);
+    if (reflections != null && reflections.sheetRequested) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_openReflection(reflections));
+      });
+    }
     return Scaffold(
       backgroundColor: context.colors.canvas,
       body: SafeArea(
@@ -168,6 +200,18 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
                     constraints.maxHeight * OrderHomeScreen.thumbZoneFraction;
                 return Column(
                   children: <Widget>[
+                    if (reflections?.askable != null)
+                      Padding(
+                        padding: EdgeInsetsDirectional.fromSTEB(
+                          context.space.screenGutter,
+                          context.space.snug,
+                          context.space.screenGutter,
+                          0,
+                        ),
+                        child: ReflectionCard(
+                          onOpen: () => _openReflection(reflections!),
+                        ),
+                      ),
                     // ---- seen, not touched ----
                     Expanded(
                       child: _PlateStage(summary: summary),
@@ -331,6 +375,7 @@ class _ThumbZone extends StatelessWidget {
           ),
         ),
         SizedBox(height: context.space.base),
+        _Insight(controller: controller, summary: summary),
         MacroCapsule(
           summary: summary,
           total: summary.isComplete
@@ -415,6 +460,37 @@ class _TrackSwitch extends StatelessWidget {
           ),
           ),
       ],
+    );
+  }
+}
+
+/// The one suggestion the guest's own answers make about this plate, if any.
+/// Shows the first only: one message at a time.
+class _Insight extends StatelessWidget {
+  const _Insight({required this.controller, required this.summary});
+
+  final PlateBuilderController controller;
+  final NutritionalSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final ReflectionController? reflections = ReflectionScope.maybeOf(context);
+    if (reflections == null) return const SizedBox.shrink();
+    final List<SatietyInsight> insights = reflections.insightsFor(
+      scale: summary.scale,
+      balance: summary.isComplete ? summary.glycemic.balance : null,
+    );
+    if (insights.isEmpty) return const SizedBox.shrink();
+    final SatietyInsight insight = insights.first;
+    return Padding(
+      padding: EdgeInsetsDirectional.symmetric(
+        horizontal: context.space.screenGutter,
+      ),
+      child: InsightLine(
+        insight: insight,
+        onApplyScale: controller.setScale,
+        onDismiss: () => unawaited(reflections.dismiss(insight.kind)),
+      ),
     );
   }
 }

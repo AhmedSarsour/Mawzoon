@@ -22,6 +22,16 @@ dependencies:
   # Typography. Plus Jakarta Sans (latin metrics) + IBM Plex Sans Arabic.
   google_fonts: ^6.2.1
 
+  # Module 10: the post-meal reflection. Pinned exact: this plugin's scheduling
+  # API has changed shape across majors, and the platform patch script
+  # (tool/patch_platforms.dart) is written against this version's setup.
+  flutter_local_notifications: 22.3.1
+  # zonedSchedule needs a TZ database and the device's zone name.
+  timezone: 0.11.1
+  flutter_timezone: 5.1.0
+  # Reflections stay on the device. One JSON key; nothing leaves the phone.
+  shared_preferences: 2.5.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
