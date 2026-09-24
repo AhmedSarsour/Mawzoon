@@ -34,6 +34,8 @@ final class MawzoonColors extends ThemeExtension<MawzoonColors> {
     required this.fiber,
     required this.track,
     required this.scrim,
+    required this.porcelain,
+    required this.kcalTint,
   });
 
   /// The dark palette: Smoked Obsidian ground, Warm Charcoal structure.
@@ -61,6 +63,10 @@ final class MawzoonColors extends ThemeExtension<MawzoonColors> {
         fiber: MawzoonBrand.crispSage,
         track: Color(0x1AECE8E0),
         scrim: Color(0xB3000000),
+        porcelain: MawzoonBrand.warmCharcoalElevated,
+        // Deeper than warmCharcoalElevated: at #2C302D, inkFaint on top of it
+        // was only 4.10:1 — the badge text needs a darker tint to clear AA.
+        kcalTint: Color(0xFF202422),
       );
 
   /// The light palette: Warm Culinary Linen ground, Soft Steamed Stone
@@ -89,6 +95,8 @@ final class MawzoonColors extends ThemeExtension<MawzoonColors> {
         fiber: Color(0xFF3F6B4A),
         track: Color(0x1A232624),
         scrim: Color(0x99000000),
+        porcelain: Color(0xFFFFFFFF),
+        kcalTint: Color(0xFFF4EEE5),
       );
 
   /// The palette matching [brightness].
@@ -150,6 +158,14 @@ final class MawzoonColors extends ThemeExtension<MawzoonColors> {
   /// The wash behind a modal sheet.
   final Color scrim;
 
+  /// A card surface a step above [structureElevated] — white in light, one
+  /// step lighter than the platter in dark. Reserved for the chef cards and
+  /// the sliding tab pill; [structure] stays the platter/dock tone.
+  final Color porcelain;
+
+  /// The tint behind a calorie badge. A whisper of warmth, not a fill.
+  final Color kcalTint;
+
   /// The tone for a plate compartment, by its position on the tray.
   ///
   /// Takes the segment's ordinal rather than the enum so that `ui_primitives`
@@ -194,6 +210,8 @@ final class MawzoonColors extends ThemeExtension<MawzoonColors> {
     Color? fiber,
     Color? track,
     Color? scrim,
+    Color? porcelain,
+    Color? kcalTint,
   }) =>
       MawzoonColors(
         brightness: brightness ?? this.brightness,
@@ -213,6 +231,8 @@ final class MawzoonColors extends ThemeExtension<MawzoonColors> {
         fiber: fiber ?? this.fiber,
         track: track ?? this.track,
         scrim: scrim ?? this.scrim,
+        porcelain: porcelain ?? this.porcelain,
+        kcalTint: kcalTint ?? this.kcalTint,
       );
 
   @override
@@ -239,6 +259,8 @@ final class MawzoonColors extends ThemeExtension<MawzoonColors> {
       fiber: c(fiber, other.fiber),
       track: c(track, other.track),
       scrim: c(scrim, other.scrim),
+      porcelain: c(porcelain, other.porcelain),
+      kcalTint: c(kcalTint, other.kcalTint),
     );
   }
 
@@ -305,7 +327,9 @@ final class MawzoonColors extends ThemeExtension<MawzoonColors> {
           other.carb == carb &&
           other.fiber == fiber &&
           other.track == track &&
-          other.scrim == scrim;
+          other.scrim == scrim &&
+          other.porcelain == porcelain &&
+          other.kcalTint == kcalTint;
 
   @override
   int get hashCode => Object.hashAll(<Object>[
@@ -326,6 +350,8 @@ final class MawzoonColors extends ThemeExtension<MawzoonColors> {
         fiber,
         track,
         scrim,
+        porcelain,
+        kcalTint,
       ]);
 
   @override

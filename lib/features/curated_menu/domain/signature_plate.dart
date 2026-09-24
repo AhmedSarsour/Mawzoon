@@ -21,6 +21,7 @@ final class SignaturePlate {
     required this.carb,
     required this.fiber,
     required this.basePriceMinorUnits,
+    this.imageAsset,
   })  : assert(id.length > 0, 'id must not be empty'),
         assert(basePriceMinorUnits > 0, 'basePriceMinorUnits must be positive');
 
@@ -47,6 +48,10 @@ final class SignaturePlate {
 
   /// Price of the plate before component surcharges, in minor units.
   final int basePriceMinorUnits;
+
+  /// The card's photo asset path. `null` — no dish has one yet — falls back
+  /// to a warm gradient placeholder.
+  final String? imageAsset;
 
   /// This plate as an editable selection at [scale].
   PlateSelection selectionAt(PortionScale scale) => PlateSelection(

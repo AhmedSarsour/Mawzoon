@@ -8,6 +8,8 @@ Map<String, Color> _surfacesOf(MawzoonColors c) => <String, Color>{
       'canvas': c.canvas,
       'structure': c.structure,
       'structureElevated': c.structureElevated,
+      'porcelain': c.porcelain,
+      'kcalTint': c.kcalTint,
     };
 
 void main() {
@@ -206,6 +208,25 @@ void main() {
       expect(tweaked.ember, Colors.pink);
       expect(tweaked.canvas, dark.canvas);
       expect(tweaked.brightness, dark.brightness);
+    });
+
+    test('copyWith replaces porcelain and kcalTint independently', () {
+      final MawzoonColors dark = MawzoonColors.dark();
+      final MawzoonColors tweaked =
+          dark.copyWith(porcelain: Colors.pink, kcalTint: Colors.teal);
+      expect(tweaked.porcelain, Colors.pink);
+      expect(tweaked.kcalTint, Colors.teal);
+      expect(tweaked.ember, dark.ember);
+    });
+
+    test('lerp interpolates porcelain and kcalTint, not just snaps them', () {
+      final MawzoonColors dark = MawzoonColors.dark();
+      final MawzoonColors light = MawzoonColors.light();
+      final MawzoonColors mid = dark.lerp(light, 0.5);
+      expect(mid.porcelain, isNot(dark.porcelain));
+      expect(mid.porcelain, isNot(light.porcelain));
+      expect(mid.kcalTint, isNot(dark.kcalTint));
+      expect(mid.kcalTint, isNot(light.kcalTint));
     });
 
     test('lerp interpolates every role and flips brightness at the midpoint',

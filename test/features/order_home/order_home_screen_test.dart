@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -685,6 +686,65 @@ void main() {
       await tester.pumpWidget(_app());
       await tester.pump(const Duration(milliseconds: 400));
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('sliding track switch (S1)', () {
+    AlignmentGeometry pillAlignment(WidgetTester tester) => tester
+        .widget<AnimatedAlign>(find.byType(AnimatedAlign))
+        .alignment;
+
+    testWidgets('the pill slides to the other half on tap',
+        (WidgetTester tester) async {
+      await _pumpPhone(tester, _app(track: OrderTrack.curated));
+      final AlignmentGeometry start = pillAlignment(tester);
+
+      await tester.tap(find.text('ابنِ طبقك'));
+      await tester.pump();
+      final AlignmentGeometry mid = pillAlignment(tester);
+      expect(
+        mid,
+        isNot(start),
+        reason: 'the target alignment must update '
+            'immediately on tap, even before the animation settles',
+      );
+
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(pillAlignment(tester), mid,
+          reason: 'and the animation must actually reach it',);
+    });
+
+    testWidgets('reduced motion snaps instead of animating',
+        (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(_phone);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: _app(track: OrderTrack.curated),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await tester.tap(find.text('ابنِ طبقك'));
+      // A single pump, no settling time: a real 320ms tween would still be
+      // mid-flight here and the alignment would not yet equal its target.
+      await tester.pump();
+
+      expect(
+        tester.widget<AnimatedAlign>(find.byType(AnimatedAlign)).duration,
+        Duration.zero,
+      );
+    });
+
+    testWidgets('the selected tab announces itself to a screen reader',
+        (WidgetTester tester) async {
+      await _pumpPhone(tester, _app(track: OrderTrack.curated));
+      final SemanticsNode node = tester.getSemantics(find.text('أطباق الشيف'));
+      expect(
+        node.flagsCollection.isSelected,
+        Tristate.isTrue,
+      );
     });
   });
 }

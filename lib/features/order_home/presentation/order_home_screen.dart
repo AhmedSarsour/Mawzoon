@@ -401,65 +401,97 @@ class _TrackSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppLanguage language = context.appLanguage;
+    final bool reducedMotion =
+        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final int index = OrderTrack.values.indexOf(track);
+
     // Two equal halves rather than intrinsically-sized pills: the labels are
     // translated, and "Build your plate · Three steps" does not fit beside
     // "Chef's plates" on a 390pt phone at any font the brand actually uses.
-    return Row(
-      children: <Widget>[
-        for (final OrderTrack option in OrderTrack.values)
-          Expanded(
-            child: Padding(
-            padding: EdgeInsetsDirectional.only(end: context.space.snug),
-            child: TactileFeedbackWell(
-              onPressed: () => onChanged(option),
-              selected: option == track,
-              semanticLabel: option.label.resolve(language),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOut,
-                padding: EdgeInsetsDirectional.symmetric(
-                  horizontal: context.space.base,
-                  vertical: context.space.snug,
-                ),
-                decoration: BoxDecoration(
-                  color: option == track
-                      ? context.colors.structureElevated
-                      : Colors.transparent,
-                  borderRadius: context.space.pillRadius,
-                  border: Border.all(
-                    color: option == track
-                        ? context.colors.hairline
-                        : Colors.transparent,
+    return Container(
+      padding: EdgeInsetsDirectional.all(context.space.micro),
+      decoration: BoxDecoration(
+        color: context.colors.track,
+        borderRadius: context.space.pillRadius,
+      ),
+      child: Stack(
+        children: <Widget>[
+          // One porcelain pill, not per-cell decoration: which half is
+          // selected is the position of a single physical object, not two
+          // cells independently redrawing themselves.
+          Positioned.fill(
+            child: AnimatedAlign(
+              duration: reducedMotion
+                  ? Duration.zero
+                  : const Duration(milliseconds: 320),
+              curve: Curves.easeOutCubic,
+              alignment: AlignmentDirectional(
+                // -1 (first half) .. 1 (second half), evenly spaced by
+                // track count — mirrors for free under RTL because this is
+                // *Directional*, not a raw left/right Alignment.
+                -1 + 2 * index / (OrderTrack.values.length - 1),
+                0,
+              ),
+              child: FractionallySizedBox(
+                widthFactor: 1 / OrderTrack.values.length,
+                heightFactor: 1,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: context.colors.porcelain,
+                    borderRadius: context.space.pillRadius,
+                    boxShadow: context.elevation.porcelain,
                   ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    MawzoonText(
-                      option.label.resolve(language),
-                      style: context.type.capsuleLabel,
-                      color: option == track
-                          ? context.colors.ink
-                          : context.colors.inkFaint,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
-                    MawzoonText(
-                      option.hint.resolve(language),
-                      style: context.type.tagLabel,
-                      color: context.colors.inkFaint,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
                 ),
               ),
             ),
           ),
+          Row(
+            children: <Widget>[
+              for (final OrderTrack option in OrderTrack.values)
+                Expanded(
+                  child: TactileFeedbackWell(
+                    onPressed: () => onChanged(option),
+                    selected: option == track,
+                    semanticLabel: option.label.resolve(language),
+                    child: Padding(
+                      padding: EdgeInsetsDirectional.symmetric(
+                        horizontal: context.space.base,
+                        vertical: context.space.snug,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          MawzoonText(
+                            option.label.resolve(language),
+                            style: context.type.capsuleLabel.copyWith(
+                              fontWeight: option == track
+                                  ? FontWeight.w700
+                                  : null,
+                            ),
+                            color: option == track
+                                ? context.colors.ink
+                                : context.colors.inkFaint,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                          MawzoonText(
+                            option.hint.resolve(language),
+                            style: context.type.tagLabel,
+                            color: context.colors.inkFaint,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
-      ],
+        ],
+      ),
     );
   }
 }

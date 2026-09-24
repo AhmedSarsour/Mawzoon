@@ -191,6 +191,22 @@ void main() {
       expect(overlaps, 0, reason: '$overlaps points fell inside two zones');
     });
 
+    test('each groove runs exactly along the edge two zones share', () {
+      // The painter draws grooves from [dividers], not from the zones. If the
+      // two drift apart, a groove cuts through food instead of between it.
+      expect(g.dividers, hasLength(2));
+      for (int i = 0; i < 2; i++) {
+        final PathMetric m = g.dividers[i].computeMetrics().single;
+        for (int k = 3; k <= 17; k++) {
+          final Offset p = m.getTangentForOffset(m.length * k / 20)!.position;
+          expect(g.zones[i].contains(p.translate(-1.5, 0)), isTrue,
+              reason: 'divider $i at ${k * 5}%: left side not in zone $i');
+          expect(g.zones[i + 1].contains(p.translate(1.5, 0)), isTrue,
+              reason: 'divider $i at ${k * 5}%: right side not in zone ${i + 1}');
+        }
+      }
+    });
+
     test('the zones tile the dish almost exactly', () {
       final double sum = g.zoneAreas.reduce((double a, double b) => a + b);
       expect(sum, closeTo(g.dishArea, g.dishArea * 0.005));

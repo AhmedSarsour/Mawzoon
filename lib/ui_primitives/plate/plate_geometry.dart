@@ -41,6 +41,7 @@ final class PlateGeometry {
     required this.dish,
     required this.ring,
     required this.zones,
+    required this.dividers,
     required this.zoneCentroids,
     required this.zoneAreas,
     required this.dishArea,
@@ -102,6 +103,7 @@ final class PlateGeometry {
         dishOutline.xAtAreaFraction(areaFractions[0] + areaFractions[1]);
     final List<double> cuts = <double>[firstCut, secondCut];
 
+    final double bow = dividerBow * a;
     final List<Path> zones = <Path>[];
     final List<Offset> centroids = <Offset>[];
     final List<double> areas = <double>[];
@@ -112,7 +114,7 @@ final class PlateGeometry {
       final _ZoneShape zone = dishOutline.zoneBetween(
         left,
         right,
-        bow: dividerBow * a,
+        bow: bow,
         bowLeft: i != 0,
         bowRight: i != 2,
       );
@@ -120,6 +122,24 @@ final class PlateGeometry {
       centroids.add(zone.centroid);
       areas.add(zone.area);
     }
+
+    // The shared edges on their own, top to bottom, for the painter's grooves.
+    // Same control points as the zones' downward pass, so each groove lies
+    // exactly on the edge the two neighbouring zones share.
+    final List<Path> dividers = <Path>[
+      for (final double x in cuts)
+        () {
+          final double y0 = dishOutline.topAt(x);
+          final double y1 = dishOutline.bottomAt(x);
+          return Path()
+            ..moveTo(x, y0)
+            ..cubicTo(
+              x + bow, y0 + (y1 - y0) * 0.28,
+              x - bow, y0 + (y1 - y0) * 0.72,
+              x, y1,
+            );
+        }(),
+    ];
 
     final Path ringPath = ringOutline.toPath(startAtTopCentre: true);
     // Metrics are cached with the geometry rather than recomputed per frame:
@@ -133,6 +153,7 @@ final class PlateGeometry {
       dish: dishOutline.toPath(),
       ring: ringPath,
       zones: List<Path>.unmodifiable(zones),
+      dividers: List<Path>.unmodifiable(dividers),
       zoneCentroids: List<Offset>.unmodifiable(centroids),
       zoneAreas: List<double>.unmodifiable(areas),
       dishArea: totalArea,
@@ -170,6 +191,9 @@ final class PlateGeometry {
 
   /// The three compartment paths, in build order.
   final List<Path> zones;
+
+  /// The two open curves between neighbouring compartments, left to right.
+  final List<Path> dividers;
 
   /// Where a label sits inside each compartment.
   final List<Offset> zoneCentroids;

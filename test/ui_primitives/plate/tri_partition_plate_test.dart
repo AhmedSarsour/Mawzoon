@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mawzoon/core/menu/ingredient_option.dart';
+import 'package:mawzoon/core/menu/plate_segment.dart';
 import 'package:mawzoon/core/menu/mawzoon_catalog.dart';
 import 'package:mawzoon/core/nutrition/nutritional_summary.dart';
 import 'package:mawzoon/core/nutrition/portion_scale.dart';
@@ -10,6 +14,13 @@ import 'package:mawzoon/ui_primitives/plate/tri_partition_plate.dart';
 import 'package:mawzoon/ui_primitives/theme/theme.dart';
 
 const BundledMawzoonFonts _fonts = BundledMawzoonFonts();
+
+/// A valid 1×1 red PNG, small enough to inline — there is no bundled test
+/// asset, and this is enough to exercise real image decoding.
+final Uint8List _onePixelPng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9'
+  'awAAAABJRU5ErkJggg==',
+);
 
 NutritionalSummary _summary(
   List<IngredientOption> options, {
@@ -43,6 +54,7 @@ Widget _host(
   Widget child, {
   TextDirection direction = TextDirection.rtl,
   bool disableAnimations = false,
+  double width = 340,
 }) =>
     MaterialApp(
       theme: AppTheme.dark(fonts: _fonts),
@@ -54,7 +66,7 @@ Widget _host(
         child: Directionality(
           textDirection: direction,
           child: Scaffold(
-            body: Center(child: SizedBox(width: 340, child: child)),
+            body: Center(child: SizedBox(width: width, child: child)),
           ),
         ),
       ),
@@ -132,9 +144,9 @@ void main() {
         of: find.byType(TriPartitionPlate),
         matching: find.byType(RepaintBoundary),
       );
-      // Only the plate layer here, since ambient is off; with ambient on the
-      // count is two, asserted separately below.
-      expect(boundaries, findsOneWidget);
+      // Ceramic and plate layers, since ambient is off; with ambient on the
+      // count is three, asserted separately below.
+      expect(boundaries, findsNWidgets(2));
     });
 
     testWidgets('every CustomPaint sits under a RepaintBoundary',
@@ -151,9 +163,10 @@ void main() {
           .where((Element e) {
         final CustomPaint p = e.widget as CustomPaint;
         return p.painter is PlateCanvasPainter ||
+            p.painter is PlateCeramicPainter ||
             p.painter is AmbientWarmthPainter;
       });
-      expect(paints, hasLength(1));
+      expect(paints, hasLength(2));
 
       for (final Element paint in paints) {
         bool foundBoundary = false;
@@ -265,8 +278,8 @@ void main() {
         of: find.byType(TriPartitionPlate),
         matching: find.byType(RepaintBoundary),
       );
-      expect(boundaries, findsNWidgets(2),
-          reason: 'ambient and plate must not share a layer',);
+      expect(boundaries, findsNWidgets(3),
+          reason: 'ambient, ceramic and plate must not share a layer',);
       expect(tester.binding.hasScheduledFrame, isTrue,
           reason: 'the ambient breath should still be running',);
       expect(tester.takeException(), isNull);
@@ -499,6 +512,95 @@ void main() {
       expect(model.isTicking, isFalse);
       expect(model.fills[0].value, 1);
       expect(model.fills[2].value, 1);
+    });
+  });
+
+  group('empty-compartment prompt pill', () {
+    Finder plateCanvasPaint() => find.byWidgetPredicate(
+          (Widget w) => w is CustomPaint && w.painter is PlateCanvasPainter,
+        );
+
+    testWidgets('draws a pill when the compartment is wide enough',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        _host(
+          TriPartitionPlate(summary: _empty, showAmbientWarmth: false),
+          width: 900,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(plateCanvasPaint(), paints..rrect());
+    });
+
+    testWidgets(
+        'hides the pill rather than overflow when the compartment is too narrow',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        _host(
+          TriPartitionPlate(summary: _empty, showAmbientWarmth: false),
+          width: 140,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(plateCanvasPaint(), isNot(paints..rrect()));
+    });
+
+    testWidgets('a filled compartment draws no pill at all',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        _host(
+          TriPartitionPlate(summary: _full, showAmbientWarmth: false),
+          width: 900,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(plateCanvasPaint(), isNot(paints..rrect()));
+    });
+  });
+
+  group('component imagery (C3)', () {
+    Finder plateCanvasPaint() => find.byWidgetPredicate(
+          (Widget w) => w is CustomPaint && w.painter is PlateCanvasPainter,
+        );
+
+    testWidgets('a resolved photo paints instead of the tone wash',
+        (WidgetTester tester) async {
+      // Real image decoding runs on another isolate/thread; the default
+      // fake-async test zone never lets it complete. runAsync steps outside
+      // that zone for the pump that has to wait on it.
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          _host(
+            TriPartitionPlate(
+              summary: _full,
+              showAmbientWarmth: false,
+              componentImages: <PlateSegment, ImageProvider>{
+                PlateSegment.protein: MemoryImage(_onePixelPng),
+              },
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await tester.pump();
+        await tester.pumpAndSettle();
+      });
+
+      expect(plateCanvasPaint(), paints..drawImageRect());
+    });
+
+    testWidgets('no provider means no image draw call, same as today',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        _host(
+          TriPartitionPlate(summary: _full, showAmbientWarmth: false),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(plateCanvasPaint(), isNot(paints..drawImageRect()));
     });
   });
 }

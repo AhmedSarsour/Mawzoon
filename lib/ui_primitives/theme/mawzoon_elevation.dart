@@ -19,6 +19,7 @@ final class MawzoonElevation extends ThemeExtension<MawzoonElevation> {
     required this.lifted,
     required this.platter,
     required this.dock,
+    required this.porcelain,
   });
 
   /// The ladder tuned for [brightness].
@@ -78,6 +79,20 @@ final class MawzoonElevation extends ThemeExtension<MawzoonElevation> {
           offset: const Offset(0, -6),
         ),
       ],
+      // The chef card / tab pill: a soft cast plus a crisp hairline rim so
+      // the porcelain edge reads even where the cast shadow is too faint to
+      // separate it from the surface behind it.
+      porcelain: <BoxShadow>[
+        BoxShadow(
+          color: dark ? const Color(0x59000000) : const Color(0x0A1C1917),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+        BoxShadow(
+          color: dark ? const Color(0x0FFFFFFF) : const Color(0x0D000000),
+          spreadRadius: 0.5,
+        ),
+      ],
     );
   }
 
@@ -96,6 +111,9 @@ final class MawzoonElevation extends ThemeExtension<MawzoonElevation> {
   /// Level 4 — the bottom dock. Casts upward.
   final List<BoxShadow> dock;
 
+  /// The porcelain card / sliding pill: a soft cast plus a hairline rim.
+  final List<BoxShadow> porcelain;
+
   @override
   MawzoonElevation copyWith({
     List<BoxShadow>? flush,
@@ -103,6 +121,7 @@ final class MawzoonElevation extends ThemeExtension<MawzoonElevation> {
     List<BoxShadow>? lifted,
     List<BoxShadow>? platter,
     List<BoxShadow>? dock,
+    List<BoxShadow>? porcelain,
   }) =>
       MawzoonElevation(
         flush: flush ?? this.flush,
@@ -110,6 +129,7 @@ final class MawzoonElevation extends ThemeExtension<MawzoonElevation> {
         lifted: lifted ?? this.lifted,
         platter: platter ?? this.platter,
         dock: dock ?? this.dock,
+        porcelain: porcelain ?? this.porcelain,
       );
 
   @override
@@ -123,6 +143,7 @@ final class MawzoonElevation extends ThemeExtension<MawzoonElevation> {
       lifted: s(lifted, other.lifted),
       platter: s(platter, other.platter),
       dock: s(dock, other.dock),
+      porcelain: s(porcelain, other.porcelain),
     );
   }
 
@@ -134,7 +155,8 @@ final class MawzoonElevation extends ThemeExtension<MawzoonElevation> {
           listEquals(other.resting, resting) &&
           listEquals(other.lifted, lifted) &&
           listEquals(other.platter, platter) &&
-          listEquals(other.dock, dock);
+          listEquals(other.dock, dock) &&
+          listEquals(other.porcelain, porcelain);
 
   @override
   int get hashCode => Object.hash(
@@ -143,8 +165,9 @@ final class MawzoonElevation extends ThemeExtension<MawzoonElevation> {
         Object.hashAll(lifted),
         Object.hashAll(platter),
         Object.hashAll(dock),
+        Object.hashAll(porcelain),
       );
 
   @override
-  String toString() => 'MawzoonElevation(4 levels)';
+  String toString() => 'MawzoonElevation(5 levels)';
 }

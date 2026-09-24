@@ -1,3 +1,6 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 
 import '../../core/menu/plate_segment.dart';
@@ -41,6 +44,7 @@ class TriPartitionPlate extends StatefulWidget {
     this.aspectRatio = 2.24,
     this.showAmbientWarmth = true,
     this.semanticLabel,
+    this.componentImages,
   });
 
   /// The live plate reading. The widget takes a summary rather than a
@@ -57,6 +61,12 @@ class TriPartitionPlate extends StatefulWidget {
   /// Screen-reader description. Defaults to a generated plate summary.
   final String? semanticLabel;
 
+  /// A photo for a filled compartment, keyed by segment. No dish ships one
+  /// today — this is the slot a future catalogue entry fills; a segment
+  /// missing from the map (or the map itself being `null`) falls back to
+  /// today's tone wash.
+  final Map<PlateSegment, ImageProvider>? componentImages;
+
   @override
   State<TriPartitionPlate> createState() => _TriPartitionPlateState();
 }
@@ -66,6 +76,14 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
   late final PlateAnimationModel _model;
   late final BalanceLockChoreography _lock;
   final PlateGeometryCache _geometry = PlateGeometryCache();
+
+  // One stream + listener per segment currently being resolved, so a
+  // provider swap or a dispose can unsubscribe the exact right one instead
+  // of leaking a callback into a torn-down State.
+  final Map<PlateSegment, ImageStream> _imageStreams = <PlateSegment, ImageStream>{};
+  final Map<PlateSegment, ImageStreamListener> _imageListeners =
+      <PlateSegment, ImageStreamListener>{};
+  final Map<PlateSegment, ui.Image> _resolvedImages = <PlateSegment, ui.Image>{};
 
   @override
   void initState() {
@@ -82,11 +100,15 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
     final bool reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     _model.reducedMotion = reduced;
     _lock.reducedMotion = reduced;
+    _syncImages(widget.componentImages);
   }
 
   @override
   void didUpdateWidget(TriPartitionPlate oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!mapEquals(oldWidget.componentImages, widget.componentImages)) {
+      _syncImages(widget.componentImages);
+    }
     if (oldWidget.summary == widget.summary) return;
 
     final bool wasComplete = oldWidget.summary.isComplete;
@@ -98,6 +120,38 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
       _lock.lock();
     } else if (!widget.summary.isComplete && wasComplete) {
       _lock.release();
+    }
+  }
+
+  /// Resolves each segment's [ImageProvider] to a decoded [ui.Image], and
+  /// drops the subscription for any segment no longer in [images].
+  ///
+  /// [CustomPainter] paints synchronously — it cannot await a network or
+  /// asset decode — so the decode happens here, once per provider change,
+  /// and the result is handed to the painter as an already-resolved image.
+  void _syncImages(Map<PlateSegment, ImageProvider>? images) {
+    for (final PlateSegment segment in PlateSegment.buildOrder) {
+      final ImageStreamListener? oldListener = _imageListeners.remove(segment);
+      final ImageStream? oldStream = _imageStreams.remove(segment);
+      if (oldListener != null) oldStream?.removeListener(oldListener);
+
+      final ImageProvider? provider = images?[segment];
+      if (provider == null) {
+        _resolvedImages.remove(segment);
+        continue;
+      }
+
+      final ImageStream stream =
+          provider.resolve(createLocalImageConfiguration(context));
+      final ImageStreamListener listener = ImageStreamListener(
+        (ImageInfo info, bool _) {
+          if (!mounted) return;
+          setState(() => _resolvedImages[segment] = info.image);
+        },
+      );
+      _imageStreams[segment] = stream;
+      _imageListeners[segment] = listener;
+      stream.addListener(listener);
     }
   }
 
@@ -118,15 +172,18 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
     final bool rtl = Directionality.of(context) == TextDirection.rtl;
     final List<String> labels = <String>[];
     final List<String> details = <String>[];
+    final List<String> prompts = <String>[];
 
     for (final PlateSegment segment in PlateSegment.buildOrder) {
       final SegmentContribution c = s.contributionFor(segment);
       if (c.isFilled) {
         labels.add('${c.portionGrams.round()}${rtl ? ' غ' : ' g'}');
         details.add('${c.kilocalories.round()} kcal');
+        prompts.add('');
       } else {
         labels.add(segment.label.resolve(context.appLanguage));
         details.add('');
+        prompts.add(segment.invitation.resolve(context.appLanguage));
       }
     }
 
@@ -137,6 +194,10 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
           .toList(growable: false),
       compartmentLabels: labels,
       compartmentDetails: details,
+      emptyPrompts: prompts,
+      compartmentImages: PlateSegment.buildOrder
+          .map((PlateSegment s2) => _resolvedImages[s2])
+          .toList(growable: false),
     );
   }
 
@@ -155,6 +216,9 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
 
   @override
   void dispose() {
+    for (final PlateSegment segment in _imageStreams.keys) {
+      _imageStreams[segment]!.removeListener(_imageListeners[segment]!);
+    }
     _lock.dispose();
     _model.dispose();
     super.dispose();
@@ -174,6 +238,15 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
           fit: StackFit.expand,
           children: <Widget>[
             if (widget.showAmbientWarmth) AmbientGlow(color: colors.ember),
+            RepaintBoundary(
+              child: CustomPaint(
+                painter: PlateCeramicPainter(
+                  colors: colors,
+                  textDirection: Directionality.of(context),
+                  geometryCache: _geometry,
+                ),
+              ),
+            ),
             RepaintBoundary(
               child: CustomPaint(
                 painter: PlateCanvasPainter(
