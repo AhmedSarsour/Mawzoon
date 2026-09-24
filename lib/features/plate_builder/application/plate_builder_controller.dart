@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/menu/ingredient_option.dart';
 import '../../../core/menu/plate_segment.dart';
+import '../../../core/menu/recipe_book.dart';
 import '../../../core/nutrition/nutritional_summary.dart';
 import '../../../core/nutrition/portion_scale.dart';
 import '../domain/plate_builder_event.dart';
@@ -95,6 +96,49 @@ final class PlateBuilderController extends ValueNotifier<PlateBuilderState> {
   void replaceSelection(PlateSelection next) {
     if (next == _selection) return;
     _apply(next, null);
+  }
+
+  /// Re-resolves the held components against [book].
+  ///
+  /// ## What a mid-session recalibration must not do
+  ///
+  /// A manager measuring a batch of chicken while a guest is building a plate
+  /// changes a number that plate is showing. The wrong answers are to clear
+  /// the compartment, to drop the guest back to an empty plate, or to leave
+  /// them looking at a figure the kitchen has superseded.
+  ///
+  /// Rebasing does none of those. Each held component is swapped for its
+  /// measured self, which has the same id and therefore *is* the same choice;
+  /// which compartments are filled and where the volume toggle sits are
+  /// untouched. The state machine re-derives, the canvas repaints with the new
+  /// numbers, and from the guest's side nothing happened except that the
+  /// calorie figure moved a little. No event is emitted: nothing the guest did
+  /// caused this, so nothing should buzz in their hand.
+  void rebase(RecipeBook book) {
+    if (book.isPublished) return;
+    final PlateSelection next = _rebased(book);
+    _selection = next;
+    // This assignment is only delivered because PlateBuilderState compares the
+    // components' measurements and not just their ids — see _sameMeasurement.
+    // With an id-only comparison the new state would be `==` the old one and
+    // ValueNotifier would drop it on the floor.
+    value = PlateBuilderState.from(next);
+  }
+
+  PlateSelection _rebased(RecipeBook book) {
+    if (book.isPublished) return _selection;
+    return PlateSelection(
+      protein: _selection.protein == null
+          ? null
+          : book.resolve(_selection.protein!) as ProteinOption,
+      carb: _selection.carb == null
+          ? null
+          : book.resolve(_selection.carb!) as CarbOption,
+      fiber: _selection.fiber == null
+          ? null
+          : book.resolve(_selection.fiber!) as FiberOption,
+      scale: _selection.scale,
+    );
   }
 
   /// Returns the plate to empty, keeping the volume toggle where the guest

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'core/localization/localized_text.dart';
+import 'ui_primitives/menu/menu_scope.dart';
+import 'features/manager_suite/application/manager_suite_controller.dart';
+import 'features/manager_suite/domain/inventory_ledger.dart';
 import 'features/order_home/presentation/order_home_screen.dart';
 import 'ui_primitives/theme/theme.dart';
 
@@ -25,6 +28,23 @@ class _MawzoonAppState extends State<MawzoonApp> {
   late ThemeData _light = AppTheme.light(language: _language);
   late ThemeData _dark = AppTheme.dark(language: _language);
 
+  /// The menu the back office publishes.
+  ///
+  /// In a real install this is a read-only view fed by whatever the manager
+  /// app and the stock take write — the guest's phone does not host the back
+  /// office, it subscribes to it. Held here so the wiring is real end to end:
+  /// a component going below the safety buffer reaches the architect carousel
+  /// through exactly the path it will in production.
+  late final ManagerSuiteController _menu = ManagerSuiteController(
+    ledger: InventoryLedger.stockedFor(60),
+  );
+
+  @override
+  void dispose() {
+    _menu.dispose();
+    super.dispose();
+  }
+
   /// Switches the app language and rebuilds both themes for the new script.
   void setLanguage(AppLanguage language) {
     if (_language == language) return;
@@ -44,6 +64,18 @@ class _MawzoonAppState extends State<MawzoonApp> {
         locale: Locale(_language.code),
         supportedLocales: mawzoonSupportedLocales,
         localizationsDelegates: mawzoonLocalizationsDelegates,
-        home: const OrderHomeScreen(),
+        home: ListenableBuilder(
+          listenable: _menu,
+          // One scope above the whole app rather than a lookup per screen.
+          // Every screen showing a menu figure reads the same snapshot in the
+          // same frame, so two parts of one screen can never disagree about
+          // what a dish weighs or whether it can be ordered.
+          builder: (BuildContext context, Widget? child) => MenuScope(
+            book: _menu.book,
+            availability: _menu.availability,
+            child: child!,
+          ),
+          child: const OrderHomeScreen(),
+        ),
       );
 }

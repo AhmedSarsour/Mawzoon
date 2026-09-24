@@ -1,5 +1,6 @@
 import '../../../core/localization/localized_text.dart';
 import '../../../core/menu/ingredient_option.dart';
+import '../../../core/menu/stock_status.dart';
 import '../../../core/nutrition/nutritional_summary.dart';
 import '../../../core/nutrition/portion_scale.dart';
 import '../../../core/pricing/money.dart';
@@ -167,16 +168,45 @@ final class OrderDraft {
   ///
   /// Three conditions, and the sheet never has to guess which one is missing:
   /// a complete plate, and for delivery, somewhere to deliver it.
-  bool get isPlaceable =>
-      selection.isComplete &&
-      (mode == FulfilmentMode.pickup || address != null);
+  bool get isPlaceable => isPlaceableIn(MenuAvailability.everything);
+
+  /// Whether this draft can be placed against [availability].
+  bool isPlaceableIn(MenuAvailability availability) =>
+      blockerIn(availability) == null;
+
+  /// Components on this plate the kitchen can no longer make.
+  ///
+  /// The plate itself is never edited to remove them. A guest who assembled
+  /// something while the last tray of it was being sold has not made a
+  /// mistake, and silently deleting their choice at the payment step is how an
+  /// app gets accused of changing an order. They are told which one, by name,
+  /// and they change it.
+  List<IngredientOption> unavailableIn(MenuAvailability availability) =>
+      <IngredientOption>[
+        for (final IngredientOption component in components)
+          if (!availability.canOrder(component.id)) component,
+      ];
 
   /// Why the order cannot be placed, or `null` when it can.
-  LocalizedText? get blocker {
+  LocalizedText? get blocker => blockerIn(MenuAvailability.everything);
+
+  /// Why the order cannot be placed against [availability], or `null`.
+  ///
+  /// Order matters. An incomplete plate is the guest's next step whatever the
+  /// store says, so it is reported first; being told a component is off while
+  /// two compartments are still empty is an answer to a question nobody asked.
+  LocalizedText? blockerIn(MenuAvailability availability) {
     if (!selection.isComplete) {
       return const LocalizedText(
         ar: 'أكمل أقسام الطبق الثلاثة',
         en: 'Finish all three compartments',
+      );
+    }
+    final List<IngredientOption> gone = unavailableIn(availability);
+    if (gone.isNotEmpty) {
+      return LocalizedText(
+        ar: 'نفد ${gone.first.name.ar} — اختر بديلًا',
+        en: '${gone.first.name.en} just sold out — pick another',
       );
     }
     if (mode == FulfilmentMode.delivery && address == null) {

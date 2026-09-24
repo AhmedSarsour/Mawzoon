@@ -78,13 +78,25 @@ right when the UI layer lands:
 
 ## 6. Running the app
 
-There is no `lib/main.dart` yet — this milestone is the domain core and its
-state machine. Once the UI layer lands:
+There are three entry points, one per device and audience. They are separate
+targets rather than routes on purpose: a guest must not be able to deep-link
+into the kitchen board or the back office.
+
+| Target | Command | Who uses it |
+| --- | --- | --- |
+| Guest app | `flutter run` | Guests ordering on a phone |
+| Kitchen display | `flutter run -t lib/main_kitchen.dart` | The line, on a landscape tablet |
+| Back office | `flutter run -t lib/main_manager.dart` | Managers: stock, sold-out rails, recipe calibration |
 
 ```bash
 flutter devices
-flutter run -d <device-id>
+flutter run -d <device-id>                              # guest
+flutter run -d <device-id> -t lib/main_kitchen.dart     # kitchen
+flutter run -d <device-id> -t lib/main_manager.dart     # manager
 ```
+
+The quickest way to see all three without an emulator is desktop or web:
+`flutter create . --platforms=macos` (or `web`), then `flutter run -d macos`.
 
 For the motion work, run in profile mode on a physical device. Debug-mode
 frame timings on Impeller are not representative, and the animation budget
@@ -94,28 +106,47 @@ here is 120 FPS:
 flutter run --profile -d <device-id>
 ```
 
+### Goldens
+
+Golden images are tagged `golden` and were generated on Linux. Font
+rasterisation differs between operating systems, so on macOS or Windows they
+may report pixel differences that are not bugs. Either skip them or regenerate
+them locally, then look at the new images before committing:
+
+```bash
+flutter test -x golden          # everything except pixel comparisons
+flutter test --update-goldens   # regenerate on this machine
+```
+
 ## Project layout
 
 ```
 lib/
-  core/                     pure Dart, zero Flutter imports
-    localization/           AppLanguage, LocalizedText (ar/en pairs)
-    menu/                   PlateSegment, IngredientOption, MawzoonCatalog
-    nutrition/              MacroProfile, PortionScale, NutritionalSummary,
-                            BalanceBand
-    validation/             allergen screening, dietary advisories
+  core/                       pure Dart, zero Flutter imports
+    feedback/                 HapticCue (named by intent)
+    localization/             AppLanguage, LocalizedText (ar/en pairs)
+    measure/                  Quantity: integer g / ml / pieces
+    menu/                     IngredientOption, MawzoonCatalog, RecipeBook,
+                              RecipeCalibration, StockStatus, MenuAvailability
+    nutrition/                MacroProfile, PortionScale, NutritionalSummary
+    pricing/                  Money (integer minor units)
+    validation/               allergen screening, dietary advisories
   features/
-    plate_builder/          the Plate Architect: selection, sealed state
-      domain/               PlateSelection, PlateBuilderState, events
-      application/          PlateBuilderController (ValueNotifier)
-    curated_menu/           the Curated Track: chef-balanced signature plates
-      domain/               SignaturePlate
-      data/                 SignaturePlateCatalog
-    cart_checkout/          (empty — next milestone)
-  ui_primitives/            (empty — next milestone)
-test/                       mirrors lib/ one-for-one
+    plate_builder/            the Plate Architect: selection, sealed state
+    curated_menu/             chef-balanced signature plates
+    order_home/               the dual-track ordering screen
+    cart_checkout/            order draft, two-tap checkout sheet
+    kitchen_display/          KDS: station tickets, urgency, packaging queue
+    manager_suite/            raw store, recipes (BOM), inventory ledger,
+                              calibrator and inventory screens
+  ui_primitives/              theme, motion, plate canvas, controls,
+                              MenuScope (the menu handed down the tree)
+  main.dart                   guest entry point
+  main_kitchen.dart           kitchen entry point
+  main_manager.dart           back-office entry point
+test/                         mirrors lib/
 ```
 
 `core/` importing anything from `package:flutter` is a design regression. It is
-pure Dart so the nutrition engine can be tested, reasoned about and reused
-without a widget tree in sight.
+pure Dart so the nutrition engine, the store and the calibration rules can be
+tested, reasoned about and reused without a widget tree in sight.

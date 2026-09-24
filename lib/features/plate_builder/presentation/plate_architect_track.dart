@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../core/localization/localized_text.dart';
 import '../../../core/menu/dietary_metadata.dart';
 import '../../../core/menu/ingredient_option.dart';
-import '../../../core/menu/mawzoon_catalog.dart';
+import '../../../ui_primitives/menu/menu_scope.dart';
 import '../../../core/menu/plate_segment.dart';
+import '../../../core/menu/stock_status.dart';
 import '../../../core/nutrition/portion_scale.dart';
 import '../../../ui_primitives/motion/motion.dart';
 import '../../../ui_primitives/interaction/snap_carousel.dart';
@@ -61,8 +62,9 @@ class PlateArchitectTrack extends StatefulWidget {
 }
 
 class _PlateArchitectTrackState extends State<PlateArchitectTrack> {
-  late PlateSegment _active =
-      widget.initialSegment ?? widget.selection.nextSegment ?? PlateSegment.protein;
+  late PlateSegment _active = widget.initialSegment ??
+      widget.selection.nextSegment ??
+      PlateSegment.protein;
 
   void _setActive(PlateSegment segment) {
     if (_active == segment) return;
@@ -102,7 +104,11 @@ class _PlateArchitectTrackState extends State<PlateArchitectTrack> {
 
   @override
   Widget build(BuildContext context) {
-    final List<IngredientOption> options = MawzoonCatalog.optionsFor(_active);
+    // The menu as served, not as published: a component the kitchen has
+    // re-measured shows its measured figures here, and one it cannot make
+    // shows as unavailable rather than quietly vanishing from the row.
+    final MenuScope menu = MenuScope.of(context);
+    final List<MenuEntry> options = menu.entriesFor(context, _active);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,12 +135,14 @@ class _PlateArchitectTrackState extends State<PlateArchitectTrack> {
           gutter: context.space.screenGutter,
           gap: context.space.snug,
           itemBuilder: (BuildContext context, int index) {
-            final IngredientOption option = options[index];
+            final MenuEntry entry = options[index];
             return IngredientChip(
-              option: option,
+              option: entry.option,
+              status: entry.status,
               scale: widget.selection.scale,
-              selected: widget.selection.optionFor(_active)?.id == option.id,
-              onPressed: () => _choose(option),
+              selected:
+                  widget.selection.optionFor(_active)?.id == entry.option.id,
+              onPressed: () => _choose(entry.option),
             );
           },
         ),
@@ -163,9 +171,8 @@ class _SegmentStepper extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: EdgeInsetsDirectional.only(
-                end: segment == PlateSegment.vitalFiber
-                    ? 0
-                    : context.space.snug,
+                end:
+                    segment == PlateSegment.vitalFiber ? 0 : context.space.snug,
               ),
               child: _StepPill(
                 segment: segment,
@@ -244,9 +251,8 @@ class _StepPill extends StatelessWidget {
                   child: MawzoonText(
                     segment.label.resolve(language),
                     style: context.type.tagLabel,
-                    color: active
-                        ? context.colors.ink
-                        : context.colors.inkFaint,
+                    color:
+                        active ? context.colors.ink : context.colors.inkFaint,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -269,6 +275,7 @@ class IngredientChip extends StatelessWidget {
     required this.onPressed,
     super.key,
     this.selected = false,
+    this.status = const InStock(portionsRemaining: 999),
   });
 
   /// The component shown.
@@ -283,68 +290,102 @@ class IngredientChip extends StatelessWidget {
   /// Whether this component is the one in the compartment.
   final bool selected;
 
+  /// What the kitchen can still make of it.
+  ///
+  /// Defaults to available, so a chip built outside a [MenuScope] — in a test,
+  /// or in a preview — behaves exactly as it did before there was a store.
+  final StockStatus status;
+
   @override
   Widget build(BuildContext context) {
     final AppLanguage language = context.appLanguage;
-    final Color tone = context.colors.toneForSegmentOrdinal(option.segment.ordinal);
+    final Color tone =
+        context.colors.toneForSegmentOrdinal(option.segment.ordinal);
     final PortionedComponent portion = option.atScale(scale);
 
+    final StockStatus stock = status;
+    final bool orderable = stock.isOrderable;
+    final SoldOutReason? soldOut = stock is SoldOut ? stock.reason : null;
+
     return TactileFeedbackWell(
-      onPressed: onPressed,
+      // Unavailable is inert, not absent. A carousel that drops an item
+      // shuffles everything the guest was reaching for under their thumb;
+      // one that greys it has answered the question they were about to ask.
+      onPressed: orderable ? onPressed : null,
+      enabled: orderable,
       selected: selected,
-      semanticLabel: '${option.name.resolve(language)}, '
-          '${portion.kilocalories.round()} kcal',
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+      semanticLabel: orderable
+          ? '${option.name.resolve(language)}, '
+              '${portion.kilocalories.round()} kcal'
+          : '${option.name.resolve(language)}, '
+              '${soldOut!.label.resolve(language)}',
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
-        padding: EdgeInsetsDirectional.all(context.space.base),
-        decoration: BoxDecoration(
-          color: selected
-              ? context.colors.structureElevated
-              : context.colors.structure,
-          borderRadius: context.space.controlRadius,
-          border: Border.all(
-            color: selected ? tone : context.colors.hairline,
-            width: selected ? 1.5 : 1,
-          ),
-          boxShadow:
-              selected ? context.elevation.lifted : context.elevation.resting,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Expanded(
-              child: MawzoonText(
-                option.name.resolve(language),
-                style: context.type.dishName,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
+        // Dimmed rather than struck through or badged in red. Running out of
+        // something is not the guest's fault and not a warning to them.
+        opacity: orderable ? 1.0 : 0.45,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: EdgeInsetsDirectional.all(context.space.base),
+          decoration: BoxDecoration(
+            color: selected
+                ? context.colors.structureElevated
+                : context.colors.structure,
+            borderRadius: context.space.controlRadius,
+            border: Border.all(
+              color: selected ? tone : context.colors.hairline,
+              width: selected ? 1.5 : 1,
             ),
-            SizedBox(height: context.space.tight),
-            Directionality(
-              textDirection: TextDirection.ltr,
-              child: Text(
-                '${portion.kilocalories.round()} kcal · '
-                '${portion.portionGrams.round()}g',
-                style: context.type.macroUnit.copyWith(
-                  color: selected ? tone : context.colors.inkFaint,
+            boxShadow:
+                selected ? context.elevation.lifted : context.elevation.resting,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: MawzoonText(
+                  option.name.resolve(language),
+                  style: context.type.dishName,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
-            if (option.allergens.isNotEmpty) ...<Widget>[
-              SizedBox(height: context.space.micro),
-              MawzoonText(
-                option.allergens
-                    .map<String>((Allergen a) => a.label.resolve(language))
-                    .join('، '),
-                style: context.type.tagLabel,
-                color: context.colors.ember,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              SizedBox(height: context.space.tight),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Text(
+                  '${portion.kilocalories.round()} kcal · '
+                  '${portion.portionGrams.round()}g',
+                  style: context.type.macroUnit.copyWith(
+                    color: selected ? tone : context.colors.inkFaint,
+                  ),
+                ),
               ),
+              if (soldOut != null) ...<Widget>[
+                SizedBox(height: context.space.micro),
+                MawzoonText(
+                  soldOut.label.resolve(language),
+                  style: context.type.tagLabel,
+                  color: context.colors.inkFaint,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ] else if (option.allergens.isNotEmpty) ...<Widget>[
+                SizedBox(height: context.space.micro),
+                MawzoonText(
+                  option.allergens
+                      .map<String>((Allergen a) => a.label.resolve(language))
+                      .join('، '),
+                  style: context.type.tagLabel,
+                  color: context.colors.ember,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -185,13 +185,19 @@ final class PlateConfiguring extends PlateBuilderState {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is PlateConfiguring &&
-          other.protein == protein &&
-          other.carb == carb &&
-          other.fiber == fiber &&
+          _sameMeasurement(other.protein, protein) &&
+          _sameMeasurement(other.carb, carb) &&
+          _sameMeasurement(other.fiber, fiber) &&
           other.scale == scale;
 
   @override
-  int get hashCode => Object.hash(PlateConfiguring, protein, carb, fiber, scale);
+  int get hashCode => Object.hash(
+        PlateConfiguring,
+        _measurementHash(protein),
+        _measurementHash(carb),
+        _measurementHash(fiber),
+        scale,
+      );
 }
 
 /// All three compartments are filled at the house portion — the balance lock.
@@ -242,13 +248,19 @@ final class PlateBalanced extends PlateBuilderState {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is PlateBalanced &&
-          other.protein == protein &&
-          other.carb == carb &&
-          other.fiber == fiber &&
+          _sameMeasurement(other.protein, protein) &&
+          _sameMeasurement(other.carb, carb) &&
+          _sameMeasurement(other.fiber, fiber) &&
           other.scale == scale;
 
   @override
-  int get hashCode => Object.hash(PlateBalanced, protein, carb, fiber, scale);
+  int get hashCode => Object.hash(
+        PlateBalanced,
+        _measurementHash(protein),
+        _measurementHash(carb),
+        _measurementHash(fiber),
+        scale,
+      );
 }
 
 /// A complete plate whose volume has been moved off the house portion.
@@ -322,12 +334,42 @@ final class PlateVolumeAdjusted extends PlateBuilderState {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is PlateVolumeAdjusted &&
-          other.protein == protein &&
-          other.carb == carb &&
-          other.fiber == fiber &&
+          _sameMeasurement(other.protein, protein) &&
+          _sameMeasurement(other.carb, carb) &&
+          _sameMeasurement(other.fiber, fiber) &&
           other.scale == scale;
 
   @override
-  int get hashCode =>
-      Object.hash(PlateVolumeAdjusted, protein, carb, fiber, scale);
+  int get hashCode => Object.hash(
+        PlateVolumeAdjusted,
+        _measurementHash(protein),
+        _measurementHash(carb),
+        _measurementHash(fiber),
+        scale,
+      );
 }
+
+/// Whether two compartments hold the same choice carrying the same figures.
+///
+/// [IngredientOption] compares by id, and that is right for what it means:
+/// "the guest picked the chicken" is true of the chicken whatever the kitchen
+/// last weighed it at. A plate *state* needs a stricter test. When a manager
+/// recalibrates a component, the id does not move and the grams do — so an
+/// id-only comparison reports the new state equal to the old one, a
+/// `ValueNotifier` suppresses the assignment as redundant, and the canvas goes
+/// on painting an energy figure the kitchen has superseded.
+///
+/// Comparing the measurements as well closes that. Absent any calibration the
+/// two tests agree exactly, so nothing else in the app changes behaviour.
+bool _sameMeasurement(IngredientOption? a, IngredientOption? b) {
+  if (identical(a, b)) return true;
+  if (a == null || b == null) return false;
+  return a == b &&
+      a.basePortionGrams == b.basePortionGrams &&
+      a.baseMacros == b.baseMacros;
+}
+
+/// A hash that moves when a component is re-measured.
+int _measurementHash(IngredientOption? option) => option == null
+    ? 0
+    : Object.hash(option.id, option.basePortionGrams, option.baseMacros);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/localization/localized_text.dart';
+import '../../../ui_primitives/menu/menu_scope.dart';
 import '../../../core/menu/ingredient_option.dart';
 import '../../../core/pricing/money.dart';
 import '../../../ui_primitives/controls/macro_capsule.dart';
@@ -72,7 +73,10 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
   }
 
   Future<void> _place() async {
-    if (!_draft.isPlaceable || _placing) return;
+    if (!_draft.isPlaceableIn(MenuScope.of(context).availability) ||
+        _placing) {
+      return;
+    }
     setState(() => _placing = true);
     MawzoonHaptics.medium();
     if (!mounted) return;
@@ -523,7 +527,9 @@ class _ConfirmBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final LocalizedText? blocker = draft.blocker;
+    final LocalizedText? blocker = draft.blockerIn(
+      MenuScope.of(context).availability,
+    );
     final bool ready = blocker == null && !placing;
 
     return Container(
