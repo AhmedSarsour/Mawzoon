@@ -141,7 +141,8 @@ void main() {
         (WidgetTester tester) async {
       for (final OrderTrack track in OrderTrack.values) {
         await _pumpPhone(tester, _app(track: track));
-        final double midpoint = _phone.height / 2;
+        final double midpoint =
+            _phone.height * (1 - OrderHomeScreen.thumbZoneFraction);
 
         final Finder carousel = track == OrderTrack.curated
             ? find.byType(CuratedTrack)
@@ -174,8 +175,13 @@ void main() {
       // chrome the page ends at.
       expect(card.bottom, lessThan(_phone.height));
       expect(card.bottom, greaterThan(_phone.height - 64));
-      expect(card.top, greaterThan(_phone.height / 2),
-          reason: 'the dock must sit inside the thumb zone',);
+      expect(
+        card.top,
+        greaterThan(
+          _phone.height * (1 - OrderHomeScreen.thumbZoneFraction),
+        ),
+        reason: 'the dock must sit inside the thumb zone',
+      );
       expect(card.left, greaterThan(0));
       expect(card.right, lessThan(_phone.width));
     });
@@ -184,7 +190,19 @@ void main() {
         (WidgetTester tester) async {
       await _pumpPhone(tester, _app());
       final Rect plate = tester.getRect(find.byType(TriPartitionPlate));
-      expect(plate.bottom, lessThan(_phone.height / 2));
+      expect(
+        plate.bottom,
+        lessThan(
+          _phone.height * (1 - OrderHomeScreen.thumbZoneFraction),
+        ),
+      );
+    });
+
+    testWidgets('the plate keeps a 150pt floor on the reference phone',
+        (WidgetTester tester) async {
+      await _pumpPhone(tester, _app());
+      final Rect stage = tester.getRect(find.byType(TriPartitionPlate));
+      expect(stage.height, greaterThanOrEqualTo(150));
     });
   });
 
@@ -460,21 +478,15 @@ void main() {
       expect(row.plates, SignaturePlateCatalog.all);
       expect(find.byType(SignaturePlateCard), findsWidgets);
 
-      // And the far end is genuinely reachable by scrolling to it.
-      // pumpAndSettle is unusable on this screen: the plate's ambient layer
-      // breathes on a 16-second loop by design, so frames never stop.
-      await tester.scrollUntilVisible(
-        find.text(SignaturePlateCatalog.all.last.name.ar),
-        220,
-        scrollable: find.descendant(
-          of: find.byType(CuratedTrack),
-          matching: find.byType(Scrollable),
-        ),
-      );
-      expect(
-        find.text(SignaturePlateCatalog.all.last.name.ar),
-        findsOneWidget,
-      );
+      // And the far end is genuinely reachable by swiping to it (RTL: drag
+      // right for the next card). pumpAndSettle is unusable on this screen:
+      // the plate's ambient layer breathes on a 16-second loop by design.
+      final Finder last = find.text(SignaturePlateCatalog.all.last.name.ar);
+      for (int i = 0; i < SignaturePlateCatalog.all.length; i++) {
+        await tester.drag(find.byType(PageView), const Offset(300, 0));
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+      expect(last, findsOneWidget);
     });
   });
 
@@ -745,6 +757,80 @@ void main() {
         node.flagsCollection.isSelected,
         Tristate.isTrue,
       );
+    });
+  });
+
+  group('premium restaurant look (S2, D1, D2)', () {
+    // `_app` themes dark, so the tokens under test are the dark ones.
+    final MawzoonColors colors = MawzoonColors.dark();
+
+    Color pillFill(WidgetTester tester) {
+      final DecoratedBox box = tester.widget<DecoratedBox>(
+        find.descendant(
+          of: find.byType(AnimatedAlign),
+          matching: find.byType(DecoratedBox),
+        ),
+      );
+      return (box.decoration as BoxDecoration).color!;
+    }
+
+    testWidgets('S2: the selected tab is an olive capsule',
+        (WidgetTester tester) async {
+      await _pumpPhone(tester, _app());
+      expect(pillFill(tester), colors.olive);
+    });
+
+    testWidgets('S2: the switch is a capsule narrower than the screen, centred',
+        (WidgetTester tester) async {
+      await _pumpPhone(tester, _app());
+      final Rect track = tester.getRect(
+        find
+            .ancestor(
+              of: find.byType(AnimatedAlign),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      expect(track.width, lessThan(_phone.width * 0.75));
+      expect(track.width, greaterThan(_phone.width * 0.55));
+      expect(track.center.dx, closeTo(_phone.width / 2, 1));
+    });
+
+    testWidgets('D1: the dock is a porcelain card', (WidgetTester tester) async {
+      await _pumpPhone(tester, _app());
+      final DecoratedBox dock = tester
+          .widgetList<DecoratedBox>(
+            find.descendant(
+              of: find.byType(MacroCapsule),
+              matching: find.byType(DecoratedBox),
+            ),
+          )
+          .first;
+      expect((dock.decoration as BoxDecoration).color, colors.porcelain);
+    });
+
+    testWidgets('D2: the order button is olive once the plate is complete',
+        (WidgetTester tester) async {
+      final PlateBuilderController controller = PlateBuilderController();
+      addTearDown(controller.dispose);
+      await _pumpPhone(tester, _app(controller: controller));
+
+      Color? ctaFill() {
+        final AnimatedContainer c = tester.widget<AnimatedContainer>(
+          find.descendant(
+            of: find.byType(BalanceLockAction),
+            matching: find.byType(AnimatedContainer),
+          ),
+        );
+        return (c.decoration as BoxDecoration?)?.color;
+      }
+
+      expect(ctaFill(), colors.structureElevated, reason: 'inert while empty');
+
+      await tester.tap(find.byType(SignaturePlateCard).first);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(controller.canCheckout, isTrue);
+      expect(ctaFill(), colors.olive);
     });
   });
 }

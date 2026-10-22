@@ -1,33 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/localization/localized_text.dart';
 import '../../../ui_primitives/menu/menu_scope.dart';
 import '../../../core/menu/ingredient_option.dart';
 import '../../../core/pricing/money.dart';
 import '../../../ui_primitives/controls/macro_capsule.dart';
+import '../../../ui_primitives/controls/mawzoon_input_decoration.dart';
 import '../../../ui_primitives/interaction/haptics.dart';
 import '../../../ui_primitives/motion/motion.dart';
 import '../../../ui_primitives/text/mawzoon_text.dart';
+import '../../../services/idempotency_key.dart';
 import '../../../ui_primitives/theme/theme_context.dart';
 import '../../plate_builder/domain/plate_selection.dart';
 import '../domain/delivery_address.dart';
+import '../domain/guest_phone.dart';
 import '../domain/order_draft.dart';
+import '../domain/order_placement.dart';
 import '../domain/saved_places.dart';
+import 'order_gateway_scope.dart';
+
+/// What the checkout ended with.
+final class CheckoutResult {
+  /// Creates a result.
+  const CheckoutResult({required this.draft, this.placed});
+
+  /// The order as the guest confirmed it.
+  final OrderDraft draft;
+
+  /// The kitchen's answer, or null when no [OrderGatewayScope] was present
+  /// (a test or preview confirming locally).
+  final OrderPlaced? placed;
+}
 
 /// Opens the checkout sheet for [selection] and returns the placed order.
 ///
-/// Returns `null` if the guest dismissed it. The caller decides what a placed
-/// order means — this function's job ends at a confirmed [OrderDraft].
-Future<OrderDraft?> showCheckoutSheet(
+/// Returns `null` if the guest dismissed it. With an [OrderGatewayScope] above
+/// it, the sheet only closes once the kitchen has the order.
+///
+/// [phone] is the guest's remembered mobile, if any: delivery then needs no
+/// typing at all.
+Future<CheckoutResult?> showCheckoutSheet(
   BuildContext context, {
   required PlateSelection selection,
+  String? phone,
 }) {
-  return showModalBottomSheet<OrderDraft>(
+  return showModalBottomSheet<CheckoutResult>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (BuildContext context) => CheckoutSheet(selection: selection),
+    // Lifts the sheet above the keyboard while the phone field is in use.
+    builder: (BuildContext context) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: CheckoutSheet(selection: selection, phone: phone),
+    ),
   );
 }
 
@@ -45,10 +72,13 @@ Future<OrderDraft?> showCheckoutSheet(
 /// is a hungry person abandoning an order.
 class CheckoutSheet extends StatefulWidget {
   /// Creates the sheet.
-  const CheckoutSheet({required this.selection, super.key});
+  const CheckoutSheet({required this.selection, this.phone, super.key});
 
   /// The plate being ordered.
   final PlateSelection selection;
+
+  /// The guest's remembered mobile (normalised), or null the first time.
+  final String? phone;
 
   @override
   State<CheckoutSheet> createState() => _CheckoutSheetState();
@@ -62,25 +92,102 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
     // chosen has quietly made the guest do the work twice.
     payment: PaymentMethod.wallet,
     address: SavedPlaces.defaultAddress,
+    phone: widget.phone,
   );
 
   bool _placing = false;
 
-  void _update(OrderDraft next) {
+  /// A remembered phone reads as one line until the guest asks to change it.
+  late bool _editingPhone = widget.phone == null;
+  late final TextEditingController _phoneText =
+      TextEditingController(text: localPart(widget.phone));
+
+  /// One key per order attempt. Kept while an attempt's outcome is unknown,
+  /// so a retry after a lost answer finds the first order instead of making a
+  /// second one.
+  String _idempotencyKey = newIdempotencyKey();
+  bool _outcomeUnknown = false;
+
+  /// The kitchen's refusal, shown on the button until the guest changes
+  /// something.
+  LocalizedText? _refusal;
+
+  /// Shown on a still-live button: try again.
+  LocalizedText? _retryNotice;
+
+  @override
+  void dispose() {
+    _phoneText.dispose();
+    super.dispose();
+  }
+
+  /// Typing is not a choice: no haptic per keystroke.
+  void _typePhone(String text) => _update(
+        _draft.withPhone(saudiMobile(text)),
+        haptic: false,
+      );
+
+  void _update(OrderDraft next, {bool haptic = true}) {
     if (next == _draft) return;
-    MawzoonHaptics.selection();
-    setState(() => _draft = next);
+    if (haptic) MawzoonHaptics.selection();
+    setState(() {
+      _draft = next;
+      _refusal = null;
+      _retryNotice = null;
+      if (!_outcomeUnknown) _idempotencyKey = newIdempotencyKey();
+    });
   }
 
   Future<void> _place() async {
     if (!_draft.isPlaceableIn(MenuScope.of(context).availability) ||
-        _placing) {
+        _placing ||
+        _refusal != null) {
       return;
     }
-    setState(() => _placing = true);
+    final OrderGatewayScope? scope = OrderGatewayScope.maybeOf(context);
+    setState(() {
+      _placing = true;
+      _retryNotice = null;
+    });
     MawzoonHaptics.medium();
+    if (scope == null) {
+      Navigator.of(context).pop(CheckoutResult(draft: _draft));
+      return;
+    }
+
+    final PlaceOrderOutcome outcome = await scope.gateway.place(
+      _draft,
+      idempotencyKey: _idempotencyKey,
+    );
     if (!mounted) return;
-    Navigator.of(context).pop(_draft);
+    switch (outcome) {
+      case OrderPlaced():
+        Navigator.of(context).pop(
+          CheckoutResult(draft: _draft, placed: outcome),
+        );
+      case OrderRefused(retryable: true):
+        setState(() {
+          _placing = false;
+          _outcomeUnknown = false;
+          _retryNotice = outcome.message;
+        });
+      case OrderRefused():
+        if (outcome.reason == RefusalReason.soldOut ||
+            outcome.reason == RefusalReason.menuChanged) {
+          scope.onMenuStale?.call();
+        }
+        setState(() {
+          _placing = false;
+          _outcomeUnknown = false;
+          _refusal = outcome.message;
+        });
+      case OrderUnreachable():
+        setState(() {
+          _placing = false;
+          _outcomeUnknown = true;
+          _retryNotice = OrderUnreachable.message;
+        });
+    }
   }
 
   @override
@@ -135,6 +242,14 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
                           onChanged: (DeliveryAddress address) =>
                               _update(_draft.copyWith(address: address)),
                         ),
+                        SizedBox(height: context.space.snug),
+                        _PhoneEntry(
+                          phone: _draft.phone,
+                          editing: _editingPhone,
+                          controller: _phoneText,
+                          onChanged: _typePhone,
+                          onEdit: () => setState(() => _editingPhone = true),
+                        ),
                       ],
                       SizedBox(height: context.space.loose),
                       const _SectionLabel(
@@ -159,6 +274,8 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
               _ConfirmBar(
                 draft: _draft,
                 placing: _placing,
+                refusal: _refusal,
+                retryNotice: _retryNotice,
                 onPlace: _place,
                 language: language,
               ),
@@ -387,6 +504,154 @@ class _AddressPicker extends StatelessWidget {
   }
 }
 
+/// The delivery phone: a field the first time, one line once remembered.
+///
+/// Shown only under delivery (a pickup guest is standing at the counter), and
+/// it says why it's asked — a number with a stated use is one people give.
+class _PhoneEntry extends StatelessWidget {
+  const _PhoneEntry({
+    required this.phone,
+    required this.editing,
+    required this.controller,
+    required this.onChanged,
+    required this.onEdit,
+  });
+
+  final String? phone;
+  final bool editing;
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLanguage language = context.appLanguage;
+    final bool ar = language == AppLanguage.arabic;
+    final String? remembered = phone;
+
+    if (!editing && remembered != null) {
+      return Container(
+        constraints: BoxConstraints(minHeight: context.space.thumbTarget),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: context.colors.hairline)),
+        ),
+        child: Row(
+          children: <Widget>[
+            // Label over number, not beside it: a phone number can't be
+            // ellipsised, and side by side it overflows a 390pt phone.
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  MawzoonText(
+                    ar ? 'جوال التوصيل' : 'Delivery phone',
+                    style: context.type.caption,
+                    color: context.colors.inkSoft,
+                  ),
+                  Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Text(
+                      formatSaudiMobile(remembered),
+                      style: context.type.dishName
+                          .copyWith(color: context.colors.ink),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TactileFeedbackWell(
+              onPressed: onEdit,
+              semanticLabel: ar ? 'تغيير رقم الجوال' : 'Change phone number',
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: context.space.thumbTarget,
+                  minWidth: context.space.thumbTarget,
+                ),
+                child: Center(
+                  child: MawzoonText(
+                    ar ? 'تغيير' : 'Change',
+                    style: context.type.capsuleLabel,
+                    color: context.colors.olive,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        MawzoonText(
+          ar ? 'رقم جوالك' : 'Your phone',
+          style: context.type.capsuleLabel,
+          color: context.colors.ink,
+        ),
+        SizedBox(height: context.space.tight),
+        Directionality(
+          // A phone number reads left to right inside an Arabic sentence.
+          textDirection: TextDirection.ltr,
+          child: TextField(
+            controller: controller,
+            onChanged: onChanged,
+            keyboardType: TextInputType.phone,
+            autofillHints: const <String>[AutofillHints.telephoneNumberNational],
+            inputFormatters: <TextInputFormatter>[
+              FilteringTextInputFormatter.allow(RegExp('[0-9٠-٩۰-۹]')),
+              LengthLimitingTextInputFormatter(10),
+            ],
+            cursorColor: context.colors.ember,
+            style: context.type.body.copyWith(
+              color: context.colors.ink,
+              fontWeight: FontWeight.w600,
+            ),
+            decoration: mawzoonInputDecoration(
+              context,
+              hint: '5X XXX XXXX',
+              prefix: Padding(
+                padding: EdgeInsetsDirectional.symmetric(
+                  horizontal: context.space.base,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      '+966',
+                      style: context.type.body.copyWith(
+                        color: context.colors.inkSoft,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(width: context.space.snug),
+                    Container(
+                      width: 1,
+                      height: 22,
+                      color: context.colors.hairline,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: context.space.tight),
+        MawzoonText(
+          ar
+              ? 'للسائق فقط إن احتاج أن يصل إليك. نحفظه لطلبك القادم.'
+              : 'Only for the driver, if they need to reach you. '
+                  'Saved for your next order.',
+          style: context.type.caption,
+          color: context.colors.inkSoft,
+        ),
+      ],
+    );
+  }
+}
+
 class _PaymentPicker extends StatelessWidget {
   const _PaymentPicker({required this.selected, required this.onChanged});
 
@@ -518,6 +783,8 @@ class _ConfirmBar extends StatelessWidget {
     required this.placing,
     required this.onPlace,
     required this.language,
+    this.refusal,
+    this.retryNotice,
   });
 
   final OrderDraft draft;
@@ -525,11 +792,18 @@ class _ConfirmBar extends StatelessWidget {
   final VoidCallback onPlace;
   final AppLanguage language;
 
+  /// The kitchen's last "no". Disables the button, like a local blocker.
+  final LocalizedText? refusal;
+
+  /// Replaces the label on a live button after a failed send.
+  final LocalizedText? retryNotice;
+
   @override
   Widget build(BuildContext context) {
-    final LocalizedText? blocker = draft.blockerIn(
-      MenuScope.of(context).availability,
-    );
+    final LocalizedText? blocker = refusal ??
+        draft.blockerIn(
+          MenuScope.of(context).availability,
+        );
     final bool ready = blocker == null && !placing;
 
     return Container(
@@ -584,6 +858,7 @@ class _ConfirmBar extends StatelessWidget {
                 // When it cannot be placed, the button says what is missing
                 // rather than sitting grey and silent.
                 blocker?.resolve(language) ??
+                    retryNotice?.resolve(language) ??
                     (language == AppLanguage.arabic
                         ? 'تأكيد الطلب'
                         : 'Place order'),

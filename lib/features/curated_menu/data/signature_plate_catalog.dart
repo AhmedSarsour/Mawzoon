@@ -32,6 +32,9 @@ abstract final class SignaturePlateCatalog {
     carb: MawzoonCatalog.airFriedSpicedPotatoes,
     fiber: MawzoonCatalog.charredGardenVeggies,
     basePriceMinorUnits: _basePriceMinorUnits,
+    // The house default. The only plate with a badge (K5) — one highlight,
+    // not a claim about order volume we don't have data for.
+    badge: LocalizedText(ar: 'مميز', en: "Chef's pick"),
   );
 
   /// Smoked entrecôte, whole bulgur, sumac salad.

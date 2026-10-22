@@ -23,6 +23,7 @@ void main() {
     String name, {
     required Brightness brightness,
     AppLanguage language = AppLanguage.arabic,
+    String? phone,
   }) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -36,7 +37,7 @@ void main() {
         home: Scaffold(
           body: Align(
             alignment: Alignment.bottomCenter,
-            child: CheckoutSheet(selection: plate),
+            child: CheckoutSheet(selection: plate, phone: phone),
           ),
         ),
       ),
@@ -54,6 +55,15 @@ void main() {
 
   testWidgets('sheet, light', (WidgetTester t) async {
     await shoot(t, 'checkout_light', brightness: Brightness.light);
+  });
+
+  testWidgets('sheet, light, phone remembered', (WidgetTester t) async {
+    await shoot(
+      t,
+      'checkout_light_remembered',
+      brightness: Brightness.light,
+      phone: '+966501234567',
+    );
   });
 
   testWidgets('sheet, english', (WidgetTester t) async {

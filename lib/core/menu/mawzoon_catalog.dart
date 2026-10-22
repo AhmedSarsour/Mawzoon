@@ -27,6 +27,7 @@ abstract final class MawzoonCatalog {
   /// Smoked entrecôte — the richest cut on the menu.
   static const ProteinOption smokedEntrecote = ProteinOption(
     id: 'protein.smoked_entrecote',
+    imageAsset: 'assets/food/components/protein_smoked_entrecote.webp',
     name: LocalizedText(ar: 'انتركوت مدخّن', en: 'Smoked Entrecôte'),
     description: LocalizedText(
       ar: 'شريحة انتركوت مدخّنة على الحطب، براحة عشر دقائق قبل التقطيع.',
@@ -90,6 +91,7 @@ abstract final class MawzoonCatalog {
   /// Herb-grilled chicken breast — the leanest anchor on the menu.
   static const ProteinOption herbGrilledBreast = ProteinOption(
     id: 'protein.herb_grilled_breast',
+    imageAsset: 'assets/food/components/protein_herb_grilled_breast.webp',
     name: LocalizedText(
       ar: 'صدر دجاج مشوي بالأعشاب',
       en: 'Herb Grilled Breast',
@@ -160,6 +162,7 @@ abstract final class MawzoonCatalog {
   /// Kofta spiced mince — seven spices, onion and parsley.
   static const ProteinOption koftaSpicedMince = ProteinOption(
     id: 'protein.kofta_spiced_mince',
+    imageAsset: 'assets/food/components/protein_kofta_spiced_mince.webp',
     name: LocalizedText(ar: 'كفتة مفرومة بالبهارات', en: 'Kofta Spiced Mince'),
     description: LocalizedText(
       ar: 'لحم مفروم مع البقدونس والبصل وسبع بهارات، مشوي على السيخ.',
@@ -192,6 +195,7 @@ abstract final class MawzoonCatalog {
   /// Marinated chicken thighs — the most forgiving cut, and the juiciest.
   static const ProteinOption marinatedThighs = ProteinOption(
     id: 'protein.marinated_thighs',
+    imageAsset: 'assets/food/components/protein_marinated_thighs.webp',
     name: LocalizedText(ar: 'أفخاذ دجاج متبّلة', en: 'Marinated Thighs'),
     description: LocalizedText(
       ar: 'أفخاذ منزوعة العظم منقوعة ليلة كاملة بالسماق والثوم والليمون.',
@@ -221,6 +225,39 @@ abstract final class MawzoonCatalog {
     ),
   );
 
+  /// Grilled salmon — PLACEHOLDER figures until the menu database lands.
+  static const ProteinOption grilledSalmon = ProteinOption(
+    id: 'protein.grilled_salmon',
+    imageAsset: 'assets/food/components/protein_grilled_salmon.webp',
+    name: LocalizedText(ar: 'سلمون مشوي', en: 'Grilled Salmon'),
+    description: LocalizedText(
+      ar: 'فيليه سلمون مشوي حتى تتقشّر طبقاته، بقشرة ذهبية خفيفة.',
+      en: 'A salmon fillet grilled until it flakes, with a light golden crust.',
+    ),
+    basePortionGrams: 150,
+    baseMacros: MacroProfile(
+      proteinGrams: 33,
+      carbohydrateGrams: 0,
+      fatGrams: 18,
+      dietaryFiberGrams: 0,
+      sodiumMilligrams: 90,
+    ),
+    method: CookingMethod.flameSeared,
+    allergens: <Allergen>{Allergen.fish},
+    dietaryTags: <DietaryTag>{
+      DietaryTag.glutenFree,
+      DietaryTag.dairyFree,
+      DietaryTag.highProtein,
+      DietaryTag.lowCarb,
+    },
+    surchargeMinorUnits: 600,
+    doneness: Doneness.mediumWell,
+    kitchenNote: LocalizedText(
+      ar: 'اشوِ ٣ دقائق للوجه، ولا تقلّبه أكثر من مرة',
+      en: 'Grill 3 min a side, turn once only',
+    ),
+  );
+
   // ---------------------------------------------------------------------
   // Compartment two — Smart Carb
   // ---------------------------------------------------------------------
@@ -228,6 +265,7 @@ abstract final class MawzoonCatalog {
   /// Air-fried spiced potatoes — comfort food, without the fryer.
   static const CarbOption airFriedSpicedPotatoes = CarbOption(
     id: 'carb.air_fried_spiced_potatoes',
+    imageAsset: 'assets/food/components/carb_air_fried_spiced_potatoes.webp',
     name: LocalizedText(
       ar: 'بطاطس متبّلة مقلية بالهواء',
       en: 'Air-Fried Spiced Potatoes',
@@ -262,6 +300,7 @@ abstract final class MawzoonCatalog {
   /// Steamed basmati — genuinely low-GI, unlike short-grain white rice.
   static const CarbOption steamedBasmati = CarbOption(
     id: 'carb.steamed_basmati',
+    imageAsset: 'assets/food/components/carb_steamed_basmati.webp',
     name: LocalizedText(ar: 'أرز بسمتي مطهو بالبخار', en: 'Steamed Basmati'),
     description: LocalizedText(
       ar: 'أرز بسمتي طويل الحبة مطهو بالبخار حتى تنفصل حبّاته.',
@@ -384,6 +423,7 @@ abstract final class MawzoonCatalog {
   /// Whole wheat pasta — the lowest-GI carb on the menu.
   static const CarbOption wholeWheatPasta = CarbOption(
     id: 'carb.whole_wheat_pasta',
+    imageAsset: 'assets/food/components/carb_whole_wheat_pasta.webp',
     name: LocalizedText(ar: 'معكرونة القمح الكامل', en: 'Whole Wheat Pasta'),
     description: LocalizedText(
       ar: 'معكرونة قمح كامل مسلوقة حتى الطراوة المتماسكة، بزيت زيتون وثوم.',
@@ -410,6 +450,68 @@ abstract final class MawzoonCatalog {
     ),
   );
 
+  /// Maqluba-style spiced rice — PLACEHOLDER figures until the menu database lands.
+  static const CarbOption maqlubaRice = CarbOption(
+    id: 'carb.maqluba_rice',
+    imageAsset: 'assets/food/components/carb_maqluba_rice.webp',
+    name: LocalizedText(ar: 'أرز مقلوبة', en: 'Maqluba Rice'),
+    description: LocalizedText(
+      ar: 'أرز بالبهارات الدافئة واللوز المحمّص، حبّاته منفصلة وذهبية.',
+      en: 'Warm-spiced rice with toasted almonds, each grain gold and separate.',
+    ),
+    basePortionGrams: 150,
+    baseMacros: MacroProfile(
+      proteinGrams: 5,
+      carbohydrateGrams: 44,
+      fatGrams: 5,
+      dietaryFiberGrams: 2,
+      sodiumMilligrams: 260,
+    ),
+    method: CookingMethod.steamed,
+    allergens: <Allergen>{Allergen.treeNuts},
+    dietaryTags: <DietaryTag>{
+      DietaryTag.plantBased,
+      DietaryTag.glutenFree,
+      DietaryTag.dairyFree,
+      DietaryTag.spiced,
+    },
+    glycemicIndex: 58,
+    kitchenNote: LocalizedText(
+      ar: 'ارفعه بالشوكة قبل التقديم، اللوز فوقه في النهاية',
+      en: 'Fork through, almonds on last',
+    ),
+  );
+
+  /// Spaghetti — PLACEHOLDER figures until the menu database lands.
+  static const CarbOption spaghetti = CarbOption(
+    id: 'carb.spaghetti',
+    imageAsset: 'assets/food/components/carb_spaghetti.webp',
+    name: LocalizedText(ar: 'سباغيتي', en: 'Spaghetti'),
+    description: LocalizedText(
+      ar: 'سباغيتي مسلوقة ألدنتي، مقلّبة بزيت الزيتون.',
+      en: 'Spaghetti cooked al dente and tossed in olive oil.',
+    ),
+    basePortionGrams: 150,
+    baseMacros: MacroProfile(
+      proteinGrams: 7,
+      carbohydrateGrams: 43,
+      fatGrams: 2,
+      dietaryFiberGrams: 2.5,
+      sodiumMilligrams: 200,
+    ),
+    method: CookingMethod.slowSimmered,
+    allergens: <Allergen>{Allergen.gluten},
+    dietaryTags: <DietaryTag>{
+      DietaryTag.plantBased,
+      DietaryTag.dairyFree,
+    },
+    glycemicIndex: 49,
+    kitchenNote: LocalizedText(
+      ar: 'ألدنتي، ثم لفّها في عش قبل التقديم',
+      en: 'Al dente, twirl into a nest to plate',
+    ),
+  );
+
   // ---------------------------------------------------------------------
   // Compartment three — Vital Fiber
   // ---------------------------------------------------------------------
@@ -417,6 +519,7 @@ abstract final class MawzoonCatalog {
   /// Charred garden vegetables.
   static const FiberOption charredGardenVeggies = FiberOption(
     id: 'fiber.charred_garden_veggies',
+    imageAsset: 'assets/food/components/fiber_charred_garden_veggies.webp',
     name: LocalizedText(
       ar: 'خضار الحديقة المشوية',
       en: 'Charred Garden Veggies',
@@ -451,6 +554,7 @@ abstract final class MawzoonCatalog {
   /// Mediterranean sumac salad.
   static const FiberOption mediterraneanSumacSalad = FiberOption(
     id: 'fiber.mediterranean_sumac_salad',
+    imageAsset: 'assets/food/components/fiber_mediterranean_sumac_salad.webp',
     name: LocalizedText(
       ar: 'سلطة السماق المتوسطية',
       en: 'Mediterranean Sumac Salad',
@@ -487,7 +591,7 @@ abstract final class MawzoonCatalog {
   // Collections and lookup
   // ---------------------------------------------------------------------
 
-  /// All six protein options, in carousel order.
+  /// All protein options, in carousel order.
   static const List<ProteinOption> proteins = <ProteinOption>[
     smokedEntrecote,
     smashedLeanBeef,
@@ -495,9 +599,10 @@ abstract final class MawzoonCatalog {
     pulledSlowCookedBeef,
     koftaSpicedMince,
     marinatedThighs,
+    grilledSalmon,
   ];
 
-  /// All six smart-carb options, in carousel order.
+  /// All smart-carb options, in carousel order.
   static const List<CarbOption> carbs = <CarbOption>[
     airFriedSpicedPotatoes,
     steamedBasmati,
@@ -505,9 +610,11 @@ abstract final class MawzoonCatalog {
     wholeBulgur,
     toastedQuinoa,
     wholeWheatPasta,
+    maqlubaRice,
+    spaghetti,
   ];
 
-  /// Both vital-fibre options, in carousel order.
+  /// All vital-fibre options, in carousel order.
   static const List<FiberOption> fibers = <FiberOption>[
     charredGardenVeggies,
     mediterraneanSumacSalad,

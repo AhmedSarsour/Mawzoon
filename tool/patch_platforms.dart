@@ -1,5 +1,5 @@
-// Adds what flutter_local_notifications 22.3.1 needs to the generated
-// android/ and ios/ folders. Run once after `flutter create .`:
+// Adds what flutter_local_notifications 22.3.1 and Supabase need to the
+// generated android/, ios/ and macos/ folders. Run once after `flutter create .`:
 //
 //   dart run tool/patch_platforms.dart
 //
@@ -18,6 +18,14 @@ class PatchFailure implements Exception {
 
 const String _bootPermission =
     '<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>';
+
+// Debug builds get INTERNET from a generated debug manifest; release does not,
+// so without this the store build silently has no backend.
+const String _internetPermission =
+    '<uses-permission android:name="android.permission.INTERNET"/>';
+
+const String _networkClientEntitlement =
+    '\t<key>com.apple.security.network.client</key>\n\t<true/>\n';
 
 const String _receivers = '''
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
@@ -43,9 +51,12 @@ String _insertAfter(String source, String anchor, String text, String file) {
   return source.replaceRange(at + anchor.length, at + anchor.length, text);
 }
 
-/// Boot permission + the two scheduling receivers (reschedule after reboot).
+/// Internet, boot permission + the two scheduling receivers.
 String patchManifest(String s) {
   const String f = 'AndroidManifest.xml';
+  if (!s.contains('android.permission.INTERNET')) {
+    s = _insertBefore(s, '<application', '$_internetPermission\n    ', f);
+  }
   if (!s.contains('RECEIVE_BOOT_COMPLETED')) {
     s = _insertBefore(s, '<application', '$_bootPermission\n    ', f);
   }
@@ -97,6 +108,15 @@ String patchAppDelegate(String s) {
   return s;
 }
 
+/// Outbound network inside the macOS sandbox.
+String patchEntitlements(String s) {
+  const String f = 'Runner/*.entitlements';
+  if (!s.contains('com.apple.security.network.client')) {
+    s = _insertBefore(s, '</dict>', _networkClientEntitlement, f);
+  }
+  return s;
+}
+
 void main(List<String> args) {
   final String root = args.isEmpty ? '.' : args.first;
   final Map<String, String Function(String)> patches =
@@ -104,6 +124,8 @@ void main(List<String> args) {
     '$root/android/app/src/main/AndroidManifest.xml': patchManifest,
     '$root/android/app/build.gradle.kts': patchGradleKts,
     '$root/ios/Runner/AppDelegate.swift': patchAppDelegate,
+    '$root/macos/Runner/DebugProfile.entitlements': patchEntitlements,
+    '$root/macos/Runner/Release.entitlements': patchEntitlements,
   };
   bool failed = false;
   patches.forEach((String path, String Function(String) patch) {

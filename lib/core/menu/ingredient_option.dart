@@ -27,6 +27,7 @@ sealed class IngredientOption {
     this.glycemicIndex = 0,
     this.surchargeMinorUnits = 0,
     this.kitchenNote,
+    this.imageAsset,
   })  : assert(id.length > 0, 'id must not be empty'),
         assert(basePortionGrams > 0, 'basePortionGrams must be positive'),
         assert(surchargeMinorUnits >= 0, 'surcharge must be non-negative'),
@@ -66,6 +67,12 @@ sealed class IngredientOption {
   /// prep notes keyed by dish id is a second thing to keep in step, and it
   /// will not be kept in step.
   final LocalizedText? kitchenNote;
+
+  /// The architect chip's cut-out photo asset path. `null` — no component has
+  /// one yet — shows no thumbnail at all: no placeholder circle, which would
+  /// be clutter (K6). A plain `String`, not `AssetImage`, because core has no
+  /// Flutter dependency.
+  final String? imageAsset;
 
   /// Glycemic index on the standard 0-110 scale against pure glucose.
   ///
@@ -129,6 +136,7 @@ final class ProteinOption extends IngredientOption {
     super.glycemicIndex,
     super.surchargeMinorUnits,
     super.kitchenNote,
+    super.imageAsset,
     this.doneness = Doneness.mediumWell,
   });
 
@@ -158,6 +166,7 @@ final class CarbOption extends IngredientOption {
     super.glycemicIndex,
     super.surchargeMinorUnits,
     super.kitchenNote,
+    super.imageAsset,
   });
 
   @override
@@ -179,6 +188,7 @@ final class FiberOption extends IngredientOption {
     super.glycemicIndex,
     super.surchargeMinorUnits,
     super.kitchenNote,
+    super.imageAsset,
   });
 
   @override

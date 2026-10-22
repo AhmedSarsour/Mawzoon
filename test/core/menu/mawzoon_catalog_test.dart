@@ -7,19 +7,19 @@ import 'package:mawzoon/core/nutrition/portion_scale.dart';
 
 void main() {
   group('catalogue shape', () {
-    test('ships six proteins, six smart carbs and two vital fibres', () {
-      expect(MawzoonCatalog.proteins, hasLength(6));
-      expect(MawzoonCatalog.carbs, hasLength(6));
+    test('ships seven proteins, eight smart carbs and two vital fibres', () {
+      expect(MawzoonCatalog.proteins, hasLength(7));
+      expect(MawzoonCatalog.carbs, hasLength(8));
       expect(MawzoonCatalog.fibers, hasLength(2));
-      expect(MawzoonCatalog.all, hasLength(14));
+      expect(MawzoonCatalog.all, hasLength(17));
     });
 
-    test('offers 72 buildable plates', () {
+    test('offers 112 buildable plates', () {
       expect(
         MawzoonCatalog.proteins.length *
             MawzoonCatalog.carbs.length *
             MawzoonCatalog.fibers.length,
-        72,
+        112,
       );
     });
 

@@ -220,6 +220,19 @@ abstract final class MawzoonRecipes {
         RecipeLine(ingredient: RawStore.lemon, amount: Quantity.pieces(0.25)),
       ],
     ),
+    PlateRecipe(
+      componentId: MawzoonCatalog.grilledSalmon.id,
+      lines: <RecipeLine>[
+        RecipeLine(
+          ingredient: RawStore.salmonFillet,
+          amount: Quantity.grams(180),
+        ),
+        RecipeLine(
+          ingredient: RawStore.oliveOil,
+          amount: Quantity.millilitres(5),
+        ),
+      ],
+    ),
 
     // -- Carbohydrates ----------------------------------------------------
     PlateRecipe(
@@ -294,6 +307,36 @@ abstract final class MawzoonRecipes {
       lines: <RecipeLine>[
         RecipeLine(
           ingredient: RawStore.wholeWheatPasta,
+          amount: Quantity.grams(65),
+        ),
+        RecipeLine(
+          ingredient: RawStore.oliveOil,
+          amount: Quantity.millilitres(5),
+        ),
+      ],
+    ),
+    PlateRecipe(
+      componentId: MawzoonCatalog.maqlubaRice.id,
+      lines: <RecipeLine>[
+        RecipeLine(
+          ingredient: RawStore.basmatiRice,
+          amount: Quantity.grams(55),
+        ),
+        RecipeLine(
+          ingredient: RawStore.oliveOil,
+          amount: Quantity.millilitres(6),
+        ),
+        RecipeLine(
+          ingredient: RawStore.houseSpiceBlend,
+          amount: Quantity.grams(3),
+        ),
+      ],
+    ),
+    PlateRecipe(
+      componentId: MawzoonCatalog.spaghetti.id,
+      lines: <RecipeLine>[
+        RecipeLine(
+          ingredient: RawStore.spaghettiDry,
           amount: Quantity.grams(65),
         ),
         RecipeLine(

@@ -1,9 +1,11 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
 import '../motion/motion.dart';
+import '../theme/mawzoon_brand.dart';
 import '../theme/mawzoon_colors.dart';
 import 'plate_animation_model.dart';
 import 'plate_geometry.dart';
@@ -181,6 +183,64 @@ final class PlateCanvasPainter extends CustomPainter {
     }
   }
 
+  /// Opacity of a filled compartment's tone wash (no photo).
+  ///
+  /// Richer than the first pass (0.10 + 0.09 * fill), which read faint next
+  /// to reference A (P2). Dark needs more: a wash on a dark well has less
+  /// luminance difference to show. Public so a test can hold the label
+  /// contrast on the *blended* fill above 3:1.
+  static double compartmentWashAlpha({
+    required bool dark,
+    required double fill,
+  }) =>
+      dark ? 0.22 + 0.14 * fill : 0.14 + 0.10 * fill;
+
+  /// The label colour for a compartment washed in [tone].
+  ///
+  /// The label is the tone itself, and the richer wash (P2) is that same tone
+  /// behind it, which pulls the two together: some tones fell under 3:1
+  /// (large-text AA). Where that happens the tone is pulled toward `ink` just
+  /// far enough to clear it, so colour-coding survives wherever it can.
+  /// Measured against the fully filled wash on both well surfaces, so the
+  /// colour doesn't shift while the fill animates.
+  static Color compartmentLabelInk(MawzoonColors colors, Color tone) {
+    final bool dark = colors.brightness == Brightness.dark;
+    final Color wash = tone.withValues(
+      alpha: compartmentWashAlpha(dark: dark, fill: 1),
+    );
+    return _inkClearing(colors, tone, <Color>[
+      Color.alphaBlend(wash, colors.structure),
+      Color.alphaBlend(wash, colors.structureElevated),
+    ]);
+  }
+
+  /// The label colour on a photo compartment's porcelain band (P1). Same rule
+  /// as [compartmentLabelInk], measured against the band instead.
+  static Color bandLabelInk(MawzoonColors colors, Color tone) =>
+      _inkClearing(colors, tone, <Color>[colors.porcelain]);
+
+  /// [tone], pulled toward `ink` only as far as it takes to clear 3:1
+  /// (large-text AA) on every one of [surfaces]. Linear search over 11
+  /// steps, stopping at the first that clears: O(1), and colour-coding
+  /// survives wherever the tone is already legible.
+  static Color _inkClearing(
+    MawzoonColors colors,
+    Color tone,
+    List<Color> surfaces,
+  ) {
+    double worst(Color ink) => surfaces
+        .map((Color s) => MawzoonBrand.contrastRatio(ink, s))
+        .reduce(math.min);
+    for (int i = 0; i <= 10; i++) {
+      final Color candidate = Color.lerp(tone, colors.ink, i / 10)!;
+      if (worst(candidate) >= 3.05) return candidate;
+    }
+    return colors.ink;
+  }
+
+  /// Share of a photo compartment's height the label band covers, at least.
+  static const double bandFraction = 0.36;
+
   void _paintCompartments(Canvas canvas, PlateGeometry g) {
     for (int logical = 0; logical < 3; logical++) {
       // Logical order is protein, carb, fibre. Visually that runs right to
@@ -196,14 +256,23 @@ final class PlateCanvasPainter extends CustomPainter {
       // An empty well is bare glaze: the grooves already mark its edges, so
       // it gets no wash and no outline.
       if (isFilled) {
+        // The wash goes under a photo too: photos are transparent cut-outs,
+        // so the compartment's tone shows around the food.
+        canvas.drawPath(
+          zone,
+          Paint()
+            ..color = tone.withValues(
+              alpha: compartmentWashAlpha(
+                dark: colors.brightness == Brightness.dark,
+                fill: fill,
+              ),
+            ),
+        );
         final ui.Image? image = data.compartmentImages[logical];
         if (image != null) {
-          _paintCompartmentImage(canvas, zone, image);
-        } else {
-          canvas.drawPath(
-            zone,
-            Paint()..color = tone.withValues(alpha: 0.10 + 0.09 * fill),
-          );
+          final Rect band = _bandFor(zone, logical);
+          _paintCompartmentImage(canvas, zone, band, image, fill);
+          _paintLabelBand(canvas, zone, band, fill);
         }
         canvas.drawPath(
           zone,
@@ -224,24 +293,118 @@ final class PlateCanvasPainter extends CustomPainter {
         tone,
         isFilled,
         zone.getBounds().width - 16,
-        zone.getBounds(),
+        zone,
       );
     }
   }
 
-  /// A filled compartment's photo, clipped to its zone and cover-fit, with a
-  /// slight wash so the compartment still reads as a shadowed well rather
-  /// than a flat sticker.
-  void _paintCompartmentImage(Canvas canvas, Path zone, ui.Image image) {
+  /// A filled compartment's cut-out, cover-fit over the well (running under
+  /// the top of the label [band]) and clipped to its zone, with a soft shadow
+  /// falling bottom-right (the plate's light is top-left).
+  ///
+  /// Cover, so the food fills its compartment; the cut-outs carry transparent
+  /// margins, so the clip trims those rather than the food. Opacity follows the compartment's
+  /// fill spring, so the food fades in with the motion that already exists.
+  /// Drawn every frame on purpose: the image arrives decoded and downsized,
+  /// so each frame costs a few texture blits, not a decode.
+  void _paintCompartmentImage(
+    Canvas canvas,
+    Path zone,
+    Rect band,
+    ui.Image image,
+    double fill,
+  ) {
+    final Rect bounds = zone.getBounds();
+    // The food runs under the top of the label band (the band is nearly
+    // opaque, so only the plate's edge shows through), and fills the well:
+    // side is the larger of the room's two sides, so the food is cover-fit
+    // and the zone's clip trims the transparent margins, not the food.
+    final double reach = math.min(band.top + band.height * 0.3, bounds.bottom);
+    final Rect room = Rect.fromLTRB(bounds.left, bounds.top, bounds.right, reach);
+    if (room.width <= 0 || room.height <= 0) return;
+    final double side = math.max(room.width, room.height) * 1.08;
+    final Rect target = Rect.fromCenter(
+      center: room.center,
+      width: side,
+      height: side,
+    );
+
     canvas.save();
     canvas.clipPath(zone);
+    // Shadow: the same alpha silhouette, tinted, blurred and nudged.
+    canvas.saveLayer(
+      target.inflate(12),
+      Paint()
+        ..imageFilter = ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4)
+        ..colorFilter = ColorFilter.mode(
+          Colors.black.withValues(
+            alpha: (colors.brightness == Brightness.dark ? 0.55 : 0.30) * fill,
+          ),
+          BlendMode.srcIn,
+        ),
+    );
     paintImage(
       canvas: canvas,
-      rect: zone.getBounds(),
+      rect: target.shift(Offset(side * 0.03, side * 0.04)),
       image: image,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.medium,
     );
-    canvas.drawPath(zone, Paint()..color = Colors.black.withValues(alpha: 0.06));
+    canvas.restore();
+    paintImage(
+      canvas: canvas,
+      rect: target,
+      image: image,
+      fit: BoxFit.contain,
+      opacity: fill,
+      filterQuality: FilterQuality.medium,
+    );
+    canvas.restore();
+  }
+
+  /// The bottom strip of a photo compartment where its label sits: at least
+  /// [bandFraction] of the zone's height, taller if the label and detail
+  /// need it. A rect, not a path; the zone clips it when painted.
+  Rect _bandFor(Path zone, int logical) {
+    final Rect bounds = zone.getBounds();
+    final double needed =
+        _textHeight(data.compartmentLabels[logical], labelStyle) +
+            _textHeight(data.compartmentDetails[logical], detailStyle) +
+            12;
+    final double height = math.min(
+      math.max(bounds.height * bandFraction, needed),
+      bounds.height * 0.6,
+    );
+    return Rect.fromLTRB(
+      bounds.left,
+      bounds.bottom - height,
+      bounds.right,
+      bounds.bottom,
+    );
+  }
+
+  double _textHeight(String text, TextStyle style) {
+    if (text.isEmpty) return 0;
+    final TextPainter p = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: textDirection,
+      maxLines: 1,
+    )..layout();
+    final double h = p.height;
+    p.dispose();
+    return h;
+  }
+
+  /// Porcelain over the bottom of the photo, so the figures read on a calm
+  /// surface instead of on food. Symmetric top-to-bottom, so it needs no RTL
+  /// handling: the zone it is clipped to is already mirrored.
+  void _paintLabelBand(Canvas canvas, Path zone, Rect band, double fill) {
+    canvas.save();
+    canvas.clipPath(zone);
+    canvas.drawRect(
+      band,
+      Paint()..color = colors.porcelain.withValues(alpha: 0.94 * fill),
+    );
     canvas.restore();
   }
 
@@ -252,8 +415,9 @@ final class PlateCanvasPainter extends CustomPainter {
     Color tone,
     bool isFilled,
     double room,
-    Rect zoneBounds,
+    Path zone,
   ) {
+    final Rect zoneBounds = zone.getBounds();
     final String label = data.compartmentLabels[logical];
     if (label.isEmpty || room <= 0) return;
 
@@ -277,12 +441,23 @@ final class PlateCanvasPainter extends CustomPainter {
       return;
     }
 
+    final bool hasPhoto = data.compartmentImages[logical] != null;
+    // With a photo the label moves into the band, and is measured against
+    // the band's own width: the bottom of an outer compartment is narrower.
+    final Rect? band = hasPhoto ? _bandFor(zone, logical) : null;
+    final Offset anchor =
+        band == null ? centre : Offset(centre.dx, band.center.dy);
+    final double width = band == null ? room : band.width - 16;
     _drawCentred(
       canvas,
       label,
-      labelStyle.copyWith(color: tone),
-      centre.translate(0, -8),
-      maxWidth: room,
+      labelStyle.copyWith(
+        color: hasPhoto
+            ? bandLabelInk(colors, tone)
+            : compartmentLabelInk(colors, tone),
+      ),
+      anchor.translate(0, -8),
+      maxWidth: width,
     );
     final String detail = data.compartmentDetails[logical];
     if (detail.isNotEmpty) {
@@ -292,8 +467,8 @@ final class PlateCanvasPainter extends CustomPainter {
         // Figures stay left-to-right in both languages: "175 kcal", never
         // "kcal 175".
         detailStyle.copyWith(color: colors.inkSoft),
-        centre.translate(0, 9),
-        maxWidth: room,
+        anchor.translate(0, 9),
+        maxWidth: width,
         forceLtr: true,
       );
     }
@@ -516,7 +691,11 @@ final class PlateCeramicPainter extends CustomPainter {
     required this.colors,
     required this.textDirection,
     required this.geometryCache,
+    this.depth = 0,
   });
+
+  /// Side-wall thickness below the plate, in pixels. Zero is a flat plate.
+  final double depth;
 
   /// The role palette.
   final MawzoonColors colors;
@@ -554,9 +733,22 @@ final class PlateCeramicPainter extends CustomPainter {
         );
     }
 
+    // 0. The platter's body: the lip stacked downward, one pixel per step
+    // (O(depth) draws, on a layer that only repaints on a theme change).
+    // Darker than the lip, so the wall reads as turned away from the light.
+    if (depth > 0) {
+      final Paint wall = Paint()..color = tones.body;
+      for (double i = depth; i >= 1; i -= 1) {
+        canvas.save();
+        canvas.translate(0, i);
+        lip(wall);
+        canvas.restore();
+      }
+    }
+
     // 1. Cast shadow, below the dish because the light is above it.
     canvas.save();
-    canvas.translate(0, 8);
+    canvas.translate(0, 8 + depth);
     lip(
       Paint()
         ..color = tones.castShadow
@@ -624,7 +816,8 @@ final class PlateCeramicPainter extends CustomPainter {
   @override
   bool shouldRepaint(PlateCeramicPainter oldDelegate) =>
       oldDelegate.colors != colors ||
-      oldDelegate.textDirection != textDirection;
+      oldDelegate.textDirection != textDirection ||
+      oldDelegate.depth != depth;
 
   @override
   bool hitTest(Offset position) => false;
@@ -685,6 +878,7 @@ final class _CeramicTones {
     required this.rimLight,
     required this.groove,
     required this.grooveLight,
+    required this.body,
   });
 
   factory _CeramicTones.of(MawzoonColors c) {
@@ -701,6 +895,7 @@ final class _CeramicTones {
       rimLight: light.withValues(alpha: dark ? 0.05 : 0.8),
       groove: shade.withValues(alpha: dark ? 0.55 : 0.16),
       grooveLight: light.withValues(alpha: dark ? 0.06 : 0.9),
+      body: Color.lerp(c.structure, shade, dark ? 0.5 : 0.28)!,
     );
   }
 
@@ -713,6 +908,7 @@ final class _CeramicTones {
   final Color rimLight;
   final Color groove;
   final Color grooveLight;
+  final Color body;
 }
 
 /// Tier 1 ambient warmth: a slow radial breath behind the dish.

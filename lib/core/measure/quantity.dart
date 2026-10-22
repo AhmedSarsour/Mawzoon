@@ -89,6 +89,11 @@ final class Quantity implements Comparable<Quantity> {
   /// not an empty tray of potatoes, and adding them must still throw.
   factory Quantity.zeroIn(MeasureUnit unit) => Quantity._(0, unit);
 
+  /// Exactly [minorUnits] thousandths of [unit], as stored in the database —
+  /// no trip through a decimal on the way in.
+  factory Quantity.fromMinorUnits(int minorUnits, MeasureUnit unit) =>
+      Quantity._(minorUnits, unit);
+
   static int _toMinor(num amount, String what) {
     if (amount.isNaN || amount.isInfinite) {
       throw ArgumentError.value(amount, what, 'must be a finite number');

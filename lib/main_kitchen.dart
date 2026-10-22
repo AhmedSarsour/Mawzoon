@@ -5,7 +5,12 @@ import 'package:flutter/services.dart';
 
 import 'core/localization/localized_text.dart';
 import 'features/kitchen_display/application/kitchen_board_controller.dart';
+import 'features/staff_auth/domain/staff_auth.dart';
+import 'features/staff_auth/presentation/staff_gate.dart';
 import 'features/kitchen_display/presentation/kitchen_board_screen.dart';
+import 'services/supabase_kitchen_feed.dart';
+import 'services/supabase_service.dart';
+import 'services/supabase_staff_auth.dart';
 import 'ui_primitives/theme/theme.dart';
 
 /// Entry point for the kitchen tablet.
@@ -24,7 +29,7 @@ import 'ui_primitives/theme/theme.dart';
 ///
 /// It also keeps the guest bundle free of the board, which never ships to a
 /// phone.
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // A kitchen tablet is mounted, landscape, and must not sleep mid-service.
@@ -38,7 +43,10 @@ void main() {
   );
   unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky));
 
-  runApp(const MawzoonKitchenApp());
+  // Live orders need a staff session (RLS), so the board sits behind sign-in.
+  // If Supabase failed to start, sign-in says it can't connect.
+  await SupabaseService.initialize();
+  runApp(MawzoonKitchenApp(auth: SupabaseStaffAuth()));
 }
 
 /// The kitchen display application shell.
@@ -51,10 +59,18 @@ void main() {
 /// knock with an elbow.
 class MawzoonKitchenApp extends StatefulWidget {
   /// Creates the kitchen app.
-  const MawzoonKitchenApp({super.key, this.language = AppLanguage.arabic});
+  const MawzoonKitchenApp({
+    super.key,
+    this.language = AppLanguage.arabic,
+    this.auth,
+  });
 
   /// The language this site's line reads.
   final AppLanguage language;
+
+  /// Staff sign-in, behind which the board shows live orders. Null: an empty
+  /// board filled by hand, for tests and demos.
+  final StaffAuth? auth;
 
   @override
   State<MawzoonKitchenApp> createState() => _MawzoonKitchenAppState();
@@ -67,18 +83,34 @@ class _MawzoonKitchenAppState extends State<MawzoonKitchenApp> {
   /// seconds, all service.
   late final ThemeData _theme = AppTheme.dark(language: widget.language);
 
-  /// The board outlives any screen showing it, so the app owns it.
-  ///
-  /// This is the seam a real install replaces: today the board starts empty
-  /// and is filled by whatever calls [KitchenBoardController.receive] — an
-  /// order stream, a POS bridge, a websocket. The board does not care where a
-  /// ticket came from, which is why that decision is not made in here.
-  late final KitchenBoardController _board = KitchenBoardController();
+  /// The demo board (no [MawzoonKitchenApp.auth]). The board outlives any
+  /// screen showing it, so the app owns it.
+  KitchenBoardController? _demo;
 
   @override
   void dispose() {
-    _board.dispose();
+    _demo?.dispose();
     super.dispose();
+  }
+
+  Widget _home() {
+    final StaffAuth? auth = widget.auth;
+    if (auth == null) {
+      return KitchenBoardScreen(controller: _demo ??= KitchenBoardController());
+    }
+    return StaffGate(
+      auth: auth,
+      subtitle: const LocalizedText(
+        ar: 'شاشة المطبخ — دخول فريق العمل',
+        en: 'Kitchen screen — staff sign-in',
+      ),
+      note: const LocalizedText(
+        ar: 'تبقى الشاشة مسجّلة حتى يخرج المدير منها. الحسابات يضيفها المدير.',
+        en: 'The screen stays signed in until the manager signs it out. '
+            'The manager adds accounts.',
+      ),
+      signedIn: (BuildContext context) => const _LiveBoard(),
+    );
   }
 
   @override
@@ -89,6 +121,30 @@ class _MawzoonKitchenAppState extends State<MawzoonKitchenApp> {
         locale: Locale(widget.language.code),
         supportedLocales: mawzoonSupportedLocales,
         localizationsDelegates: mawzoonLocalizationsDelegates,
-        home: KitchenBoardScreen(controller: _board),
+        home: _home(),
       );
+}
+
+/// The board on live orders. Owns its controller, so signing out (which
+/// removes this widget) also closes the realtime channel.
+class _LiveBoard extends StatefulWidget {
+  const _LiveBoard();
+
+  @override
+  State<_LiveBoard> createState() => _LiveBoardState();
+}
+
+class _LiveBoardState extends State<_LiveBoard> {
+  late final KitchenBoardController _board =
+      KitchenBoardController(feed: SupabaseKitchenFeed());
+
+  @override
+  void dispose() {
+    _board.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      KitchenBoardScreen(controller: _board);
 }

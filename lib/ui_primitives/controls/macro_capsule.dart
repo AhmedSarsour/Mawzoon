@@ -69,10 +69,9 @@ class MacroCapsule extends StatelessWidget {
       ),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: context.colors.structure,
+          color: context.colors.porcelain,
           borderRadius: BorderRadius.circular(context.space.radiusPlatter),
-          border: Border.all(color: context.colors.hairline),
-          boxShadow: context.elevation.dock,
+          boxShadow: context.elevation.porcelain,
         ),
         child: Padding(
           padding: EdgeInsetsDirectional.all(context.space.base),
@@ -260,7 +259,7 @@ class _Figures extends StatelessWidget {
 /// that vanishes and reappears moves everything beside it and the guest loses
 /// the place their thumb was already heading for.
 ///
-/// On completion it springs into Roasted Ember and grows an olive badge. The
+/// On completion it springs into Cold-Pressed Olive and grows a check ring. The
 /// spring is a scale overshoot, not a colour flash: the eye reads a size
 /// change as the object arriving, where a flash reads as an alert.
 class BalanceLockAction extends StatefulWidget {
@@ -348,7 +347,7 @@ class _BalanceLockActionState extends State<BalanceLockAction>
           ),
           decoration: BoxDecoration(
             color: widget.ready
-                ? context.colors.ember
+                ? context.colors.olive
                 : context.colors.structureElevated,
             borderRadius: context.space.pillRadius,
             border: widget.ready
@@ -359,7 +358,7 @@ class _BalanceLockActionState extends State<BalanceLockAction>
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               if (widget.ready) ...<Widget>[
-                const BalanceBadge(),
+                const BalanceBadge(onOlive: true),
                 SizedBox(width: context.space.snug),
               ],
               Flexible(
@@ -371,7 +370,7 @@ class _BalanceLockActionState extends State<BalanceLockAction>
                       widget.label,
                       style: context.type.buttonLabel,
                       color: widget.ready
-                          ? context.colors.onEmber
+                          ? context.colors.onOlive
                           : context.colors.inkFaint,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -382,8 +381,8 @@ class _BalanceLockActionState extends State<BalanceLockAction>
                         child: Text(
                           widget.total!.format(language),
                           style: context.type.macroUnit.copyWith(
-                            color: context.colors.onEmber
-                                .withValues(alpha: 0.78),
+                            color: context.colors.onOlive
+                                .withValues(alpha: 0.85),
                           ),
                         ),
                       ),
@@ -405,25 +404,31 @@ class _BalanceLockActionState extends State<BalanceLockAction>
 /// people who can distinguish olive from ember means nothing to the rest.
 class BalanceBadge extends StatelessWidget {
   /// Creates the badge.
-  const BalanceBadge({super.key, this.size = 20});
+  const BalanceBadge({super.key, this.size = 20, this.onOlive = false});
 
   /// Edge length of the badge.
   final double size;
 
+  /// Draw for sitting on an olive fill: an olive badge would vanish there, so
+  /// it becomes a thin ring with the check inside.
+  final bool onOlive;
+
   @override
   Widget build(BuildContext context) {
+    final Color fg = context.colors.onOlive;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: context.colors.olive,
+        color: onOlive ? Colors.transparent : context.colors.olive,
         shape: BoxShape.circle,
+        border: onOlive ? Border.all(color: fg, width: 1.5) : null,
       ),
       child: Center(
         child: Icon(
           Icons.check_rounded,
           size: size * 0.66,
-          color: context.colors.onOlive,
+          color: fg,
         ),
       ),
     );

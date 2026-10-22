@@ -90,7 +90,7 @@ class _VolumeOption extends StatelessWidget {
           horizontal: context.space.snug,
         ),
         decoration: BoxDecoration(
-          color: selected ? context.colors.structureElevated : Colors.transparent,
+          color: selected ? context.colors.porcelain : Colors.transparent,
           borderRadius: context.space.pillRadius,
           boxShadow: selected ? context.elevation.resting : const <BoxShadow>[],
         ),

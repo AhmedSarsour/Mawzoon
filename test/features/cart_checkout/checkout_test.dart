@@ -184,7 +184,14 @@ void main() {
   });
 
   group('the sheet is answerable the moment it opens', () {
-    Future<void> open(WidgetTester tester, {PlateSelection? plate}) async {
+    // A returning guest: the phone is remembered, so delivery is one tap.
+    const String remembered = '+966501234567';
+
+    Future<void> open(
+      WidgetTester tester, {
+      PlateSelection? plate,
+      String? phone = remembered,
+    }) async {
       await tester.binding.setSurfaceSize(const Size(390, 844));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
@@ -194,7 +201,10 @@ void main() {
           supportedLocales: mawzoonSupportedLocales,
           localizationsDelegates: mawzoonLocalizationsDelegates,
           home: Scaffold(
-            body: CheckoutSheet(selection: plate ?? _completePlate),
+            body: CheckoutSheet(
+              selection: plate ?? _completePlate,
+              phone: phone,
+            ),
           ),
         ),
       );
@@ -223,7 +233,7 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(390, 844));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      OrderDraft? placed;
+      CheckoutResult? placed;
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark(fonts: _fonts),
@@ -238,6 +248,7 @@ void main() {
                     placed = await showCheckoutSheet(
                       context,
                       selection: _completePlate,
+                      phone: remembered,
                     );
                   },
                   child: const Text('open'),
@@ -261,9 +272,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(placed, isNotNull);
-      expect(placed!.isPlaceable, isTrue);
-      expect(placed!.address, SavedPlaces.home);
-      expect(placed!.payment, PaymentMethod.wallet);
+      expect(placed!.draft.isPlaceable, isTrue);
+      expect(placed!.draft.address, SavedPlaces.home);
+      expect(placed!.draft.payment, PaymentMethod.wallet);
     });
 
     testWidgets('switching to pickup drops the address picker and the fee',
@@ -320,6 +331,16 @@ void main() {
       await open(tester);
       expect(find.byType(TextField), findsNothing,
           reason: 'a hungry person typing sixteen digits is a lost order',);
+    });
+
+    testWidgets('the only field ever shown is the first-time delivery phone',
+        (WidgetTester tester) async {
+      await open(tester, phone: null);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).keyboardType,
+        TextInputType.phone,
+      );
     });
   });
 

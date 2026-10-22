@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../core/measure/quantity.dart';
@@ -6,6 +8,7 @@ import '../../../core/nutrition/portion_scale.dart';
 import '../../cart_checkout/domain/order_draft.dart';
 import '../domain/inventory_ledger.dart';
 import '../domain/raw_ingredient.dart';
+import 'back_office_store.dart';
 import '../../../core/menu/recipe_book.dart';
 import '../../../core/menu/recipe_calibration.dart';
 import '../../../core/menu/stock_status.dart';
@@ -25,17 +28,37 @@ import '../../../core/menu/stock_status.dart';
 /// a [MenuAvailability] from both. Nothing else recomputes availability.
 final class ManagerSuiteController extends ChangeNotifier {
   /// Creates the suite.
+  ///
+  /// With a [store], the ledger is loaded from it, follows its live changes
+  /// (every order placed draws stock on the server), and every count, switch
+  /// and calibration is written back to it. The server's view wins: a write
+  /// that fails is undone by the next reload rather than left looking saved.
   ManagerSuiteController({
     RecipeBook book = RecipeBook.published,
     InventoryLedger? ledger,
     DateTime Function()? now,
     String signedInAs = 'manager',
+    BackOfficeStore? store,
   })  : _book = book,
         _ledger = ledger ?? InventoryLedger(),
         _now = now ?? DateTime.now,
-        _signedInAs = signedInAs {
+        _signedInAs = signedInAs,
+        _store = store {
     _availability = _ledger.availabilityWith(_book);
+    if (store != null) {
+      _changes = store.changes().listen((_) => unawaited(reload()));
+      unawaited(reload());
+    }
   }
+
+  final BackOfficeStore? _store;
+  StreamSubscription<void>? _changes;
+  bool _disposed = false;
+
+  /// Writes on their way to the store. A reload read before they land would
+  /// show the manager their change undone, so reloads wait for them.
+  int _writesInFlight = 0;
+  bool _reloadWanted = false;
 
   final DateTime Function() _now;
   final String _signedInAs;
@@ -89,6 +112,7 @@ final class ManagerSuiteController extends ChangeNotifier {
     _book = _book.withCalibration(calibration);
     _history.insert(0, calibration);
     _recompute();
+    _writePortionFactor(published.id);
     return calibration.advisories;
   }
 
@@ -98,6 +122,7 @@ final class ManagerSuiteController extends ChangeNotifier {
     if (identical(next, _book)) return;
     _book = next;
     _recompute();
+    _writePortionFactor(componentId);
   }
 
   // -- Inventory ----------------------------------------------------------
@@ -106,24 +131,28 @@ final class ManagerSuiteController extends ChangeNotifier {
   void receive(RawIngredient ingredient, Quantity amount) {
     _ledger.receive(ingredient, amount);
     _recompute();
+    _write((BackOfficeStore s) => s.adjust(ingredient.id, amount.minorUnits));
   }
 
   /// Records a stock take.
   void setCount(RawIngredient ingredient, Quantity amount) {
     _ledger.setCount(ingredient, amount);
     _recompute();
+    _write((BackOfficeStore s) => s.setCount(ingredient.id, amount.minorUnits));
   }
 
   /// Records waste or a staff meal.
   void writeOff(RawIngredient ingredient, Quantity amount) {
     _ledger.writeOff(ingredient, amount);
     _recompute();
+    _write((BackOfficeStore s) => s.adjust(ingredient.id, -amount.minorUnits));
   }
 
   /// Takes a component off the menu by hand, or puts it back.
   void setForcedOff(String componentId, {required bool off}) {
     _ledger.setForcedOff(componentId, off: off);
     _recompute();
+    _write((BackOfficeStore s) => s.setForcedOff(componentId, off: off));
   }
 
   /// Replaces the whole ledger — a fresh count, or a service starting.
@@ -194,7 +223,72 @@ final class ManagerSuiteController extends ChangeNotifier {
   /// availability must never be recomputed by a listener — if it were, two
   /// listeners could disagree about what is on the menu within one frame.
   void _recompute() {
+    if (_disposed) return;
     _availability = _ledger.availabilityWith(_book);
     notifyListeners();
+  }
+
+  // -- The server ---------------------------------------------------------
+
+  /// Replaces the ledger with the store's current counts and switches.
+  Future<void> reload() async {
+    final BackOfficeStore? store = _store;
+    if (store == null || _disposed) return;
+    if (_writesInFlight > 0) {
+      _reloadWanted = true;
+      return;
+    }
+    try {
+      final BackOfficeSnapshot snapshot = await store.load();
+      if (_disposed || _writesInFlight > 0) return;
+      final InventoryLedger ledger = InventoryLedger(
+        rails: snapshot.rails,
+        opening: <RawIngredient, Quantity>{
+          for (final MapEntry<String, int> entry
+              in snapshot.stockMinorUnits.entries)
+            if (RawStore.byId(entry.key) case final RawIngredient ingredient)
+              ingredient: Quantity.fromMinorUnits(entry.value, ingredient.unit),
+        },
+      );
+      for (final String componentId in snapshot.forcedOff) {
+        ledger.setForcedOff(componentId, off: true);
+      }
+      replaceLedger(ledger);
+    } catch (error) {
+      debugPrint('back office reload failed: $error');
+    }
+  }
+
+  void _writePortionFactor(String componentId) {
+    final double factor = _book.portionFactorFor(componentId);
+    _write((BackOfficeStore s) => s.setPortionFactor(componentId, factor));
+  }
+
+  void _write(Future<void> Function(BackOfficeStore store) write) {
+    final BackOfficeStore? store = _store;
+    if (store == null) return;
+    _writesInFlight++;
+    unawaited(() async {
+      try {
+        await write(store);
+      } catch (error) {
+        debugPrint('back office write failed: $error');
+        _reloadWanted = true;
+      } finally {
+        _writesInFlight--;
+        if (_writesInFlight == 0 && _reloadWanted) {
+          _reloadWanted = false;
+          await reload();
+        }
+      }
+    }());
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    unawaited(_changes?.cancel());
+    _store?.dispose();
+    super.dispose();
   }
 }

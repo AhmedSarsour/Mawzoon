@@ -146,6 +146,15 @@ abstract final class RawStore {
     shelfLifeDays: 3,
   );
 
+  /// Skin-on salmon fillet. PLACEHOLDER until the menu database lands.
+  static const RawIngredient salmonFillet = RawIngredient(
+    id: 'raw.salmon_fillet',
+    name: LocalizedText(ar: 'فيليه سلمون', en: 'Salmon fillet'),
+    unit: MeasureUnit.gram,
+    area: StorageArea.chiller,
+    shelfLifeDays: 2,
+  );
+
   // -- Carbohydrates ------------------------------------------------------
 
   /// Waxy potatoes, delivered unwashed.
@@ -194,6 +203,14 @@ abstract final class RawStore {
   static const RawIngredient wholeWheatPasta = RawIngredient(
     id: 'raw.whole_wheat_pasta',
     name: LocalizedText(ar: 'معكرونة قمح كامل', en: 'Whole-wheat pasta'),
+    unit: MeasureUnit.gram,
+    area: StorageArea.dryStore,
+  );
+
+  /// Dry spaghetti. PLACEHOLDER until the menu database lands.
+  static const RawIngredient spaghettiDry = RawIngredient(
+    id: 'raw.spaghetti_dry',
+    name: LocalizedText(ar: 'سباغيتي', en: 'Spaghetti'),
     unit: MeasureUnit.gram,
     area: StorageArea.dryStore,
   );
@@ -286,12 +303,14 @@ abstract final class RawStore {
     beefChuck,
     chickenBreast,
     chickenThigh,
+    salmonFillet,
     potato,
     sweetPotato,
     basmatiRice,
     bulgur,
     quinoa,
     wholeWheatPasta,
+    spaghettiDry,
     gardenVegetables,
     cucumber,
     tomato,

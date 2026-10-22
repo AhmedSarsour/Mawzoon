@@ -31,11 +31,20 @@ dependencies:
   flutter_timezone: 5.1.0
   # Reflections stay on the device. One JSON key; nothing leaves the phone.
   shared_preferences: 2.5.5
+  # Module 11: orders and stock. Pinned exact: the realtime `.stream()` and
+  # anonymous-auth APIs the repositories rely on have changed across minors.
+  supabase_flutter: 2.18.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  # tool/catalogue_seed.dart: SHA-256 of the menu for the catalogue fingerprint.
+  # Pinned to the version supabase_flutter already resolves, so nothing new downloads.
+  crypto: 3.0.7
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/food/plates/
+    - assets/food/components/

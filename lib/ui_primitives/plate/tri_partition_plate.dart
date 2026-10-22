@@ -45,6 +45,7 @@ class TriPartitionPlate extends StatefulWidget {
     this.showAmbientWarmth = true,
     this.semanticLabel,
     this.componentImages,
+    this.bodyDepth = 0,
   });
 
   /// The live plate reading. The widget takes a summary rather than a
@@ -66,6 +67,11 @@ class TriPartitionPlate extends StatefulWidget {
   /// missing from the map (or the map itself being `null`) falls back to
   /// today's tone wash.
   final Map<PlateSegment, ImageProvider>? componentImages;
+
+  /// Thickness of the platter's side wall, drawn below the plate's own
+  /// height (the widget reserves this much extra space). Zero is the flat
+  /// top-down plate.
+  final double bodyDepth;
 
   @override
   State<TriPartitionPlate> createState() => _TriPartitionPlateState();
@@ -232,9 +238,12 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
     return Semantics(
       label: _describe(context),
       container: true,
-      child: AspectRatio(
+      child: Padding(
+        padding: EdgeInsets.only(bottom: widget.bodyDepth),
+        child: AspectRatio(
         aspectRatio: widget.aspectRatio,
         child: Stack(
+          clipBehavior: Clip.none,
           fit: StackFit.expand,
           children: <Widget>[
             if (widget.showAmbientWarmth) AmbientGlow(color: colors.ember),
@@ -244,6 +253,7 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
                   colors: colors,
                   textDirection: Directionality.of(context),
                   geometryCache: _geometry,
+                  depth: widget.bodyDepth,
                 ),
               ),
             ),
@@ -263,6 +273,7 @@ class _TriPartitionPlateState extends State<TriPartitionPlate>
               ),
             ),
           ],
+        ),
         ),
       ),
     );

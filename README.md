@@ -78,6 +78,7 @@ directional heuristic it is, with the published figure always kept beside it.
 | `features/kitchen_display/` — KDS and assembly routing | done, tested |
 | `features/manager_suite/` — calibration, inventory, sold-out rails | done, tested |
 | `features/mindful_satiety/` — post-meal check-in and what it learns | done, tested |
+| Supabase backend — orders, stock, staff sign-in (`supabase/`, `lib/services/`) | done, tested live (`bash tool/live_e2e.sh`) |
 
 `flutter analyze` clean. Goldens are machine-specific: `flutter test -x golden`
 on any machine other than the one that recorded them.

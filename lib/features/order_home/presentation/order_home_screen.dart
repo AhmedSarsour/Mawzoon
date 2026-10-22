@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -11,9 +12,12 @@ import '../../../ui_primitives/motion/motion.dart';
 import '../../../ui_primitives/plate/tri_partition_plate.dart';
 import '../../../ui_primitives/text/mawzoon_text.dart';
 import '../../../ui_primitives/theme/theme_context.dart';
+import '../../../ui_primitives/theme/theme_mode_scope.dart';
 import '../../cart_checkout/domain/delivery_address.dart';
 import '../../cart_checkout/domain/order_draft.dart';
 import '../../cart_checkout/presentation/checkout_sheet.dart';
+import '../../cart_checkout/domain/guest_phone.dart';
+import '../../cart_checkout/presentation/order_gateway_scope.dart';
 import '../../curated_menu/domain/signature_plate.dart';
 import '../../curated_menu/presentation/curated_track.dart';
 import '../../mindful_satiety/application/reflection_controller.dart';
@@ -24,7 +28,9 @@ import '../../mindful_satiety/presentation/reflection_surfaces.dart';
 import '../../plate_builder/application/plate_builder_controller.dart';
 import '../../plate_builder/domain/plate_builder_event.dart';
 import '../../plate_builder/domain/plate_builder_state.dart';
+import '../../plate_builder/domain/plate_selection.dart';
 import '../../plate_builder/presentation/plate_architect_track.dart';
+import 'component_images.dart';
 
 /// Which way the guest is ordering.
 enum OrderTrack {
@@ -81,8 +87,11 @@ class OrderHomeScreen extends StatefulWidget {
   ///
   /// Measured from the bottom. On a phone held one-handed the thumb sweeps a
   /// rough arc over the lower half; anything above it takes a second hand or a
-  /// grip shift, and a grip shift is where an order gets abandoned.
-  static const double thumbZoneFraction = 0.5;
+  /// grip shift, and a grip shift is where an order gets abandoned. Raised
+  /// from 0.5 to 0.62 for the tall chef cards (K4): they need the room, and
+  /// the track switch — the only control that lands near the top of the
+  /// reach arc — is the least-used control on the screen.
+  static const double thumbZoneFraction = 0.62;
 
   /// An externally owned controller, for tests or a restored order.
   final PlateBuilderController? controller;
@@ -122,17 +131,26 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
     setState(() => _track = track);
   }
 
-  /// Opens checkout, and reports back when an order is placed.
+  /// Opens checkout, and confirms once the kitchen has the order.
   ///
-  /// The screen does not know what placing an order means yet — there is no
-  /// backend — so it confirms and clears. Everything the confirmation needs is
-  /// already in the returned draft.
+  /// The sheet only closes on the kitchen's yes, so the number shown here is
+  /// the one called out at the pass.
   Future<void> _openCheckout() async {
-    final OrderDraft? placed = await showCheckoutSheet(
+    final PhoneMemory? phones = OrderGatewayScope.maybeOf(context)?.phoneMemory;
+    final String? phone = await phones?.read();
+    if (!mounted) return;
+    final CheckoutResult? result = await showCheckoutSheet(
       context,
       selection: _controller.selection,
+      phone: phone,
     );
-    if (placed == null || !mounted) return;
+    if (result == null || !mounted) return;
+    final OrderDraft placed = result.draft;
+    final String? usedPhone = placed.phone;
+    if (result.placed != null && usedPhone != null && usedPhone != phone) {
+      unawaited(phones?.write(usedPhone));
+    }
+    final String code = result.placed == null ? '' : ' ${result.placed!.code}';
 
     MawzoonHaptics.medium();
     final AppLanguage language = context.appLanguage;
@@ -143,8 +161,8 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
       SnackBar(
         content: MawzoonText(
           language == AppLanguage.arabic
-              ? 'تم استلام طلبك · ${placed.mode.estimate.resolve(language)}'
-              : 'Order in · ${placed.mode.estimate.resolve(language)}',
+              ? 'تم استلام طلبك$code · ${placed.mode.estimate.resolve(language)}'
+              : 'Order in$code · ${placed.mode.estimate.resolve(language)}',
           style: context.type.capsuleLabel,
           color: context.colors.ink,
         ),
@@ -196,8 +214,14 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
             final NutritionalSummary summary = state.macros;
             return LayoutBuilder(
               builder: (BuildContext context, BoxConstraints constraints) {
-                final double thumbZone =
-                    constraints.maxHeight * OrderHomeScreen.thumbZoneFraction;
+                // Floor: the plate never drops below 150pt, even if the
+                // thumb zone's own content (reflection card + dock) grows
+                // past its usual size on a future change.
+                const double minPlateHeight = 150;
+                final double thumbZone = math.min(
+                  constraints.maxHeight * OrderHomeScreen.thumbZoneFraction,
+                  constraints.maxHeight - minPlateHeight,
+                );
                 return Column(
                   children: <Widget>[
                     if (reflections?.askable != null)
@@ -214,7 +238,10 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
                       ),
                     // ---- seen, not touched ----
                     Expanded(
-                      child: _PlateStage(summary: summary),
+                      child: _PlateStage(
+                        summary: summary,
+                        selection: state.selection,
+                      ),
                     ),
                     // ---- reached ----
                     ConstrainedBox(
@@ -245,31 +272,108 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
 
 /// The upper half: wordmark, plate, and how the plate reads.
 class _PlateStage extends StatelessWidget {
-  const _PlateStage({required this.summary});
+  const _PlateStage({required this.summary, required this.selection});
 
   final NutritionalSummary summary;
+  final PlateSelection selection;
 
   @override
   Widget build(BuildContext context) {
     final AppLanguage language = context.appLanguage;
+    // Side view: the platter tips back to show its rim and body once food is
+    // on it. Motion spent on the peak moment (a compartment filling), not idle.
+    final bool hasFood = summary.remainingSegmentCount < 3;
     return Padding(
       padding: EdgeInsetsDirectional.symmetric(
         horizontal: context.space.screenGutter,
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
           Row(
             children: <Widget>[
               MawzoonText('موزون', style: context.type.wordmark),
               const Spacer(),
               Flexible(child: _Verdict(summary: summary, language: language)),
+              const _ThemeToggle(),
             ],
           ),
-          const Spacer(),
-          TriPartitionPlate(summary: summary),
-          const Spacer(),
+          // The plate takes the height left, bottom-aligned so it sits right
+          // above the track switch; when a reflection card squeezes the stage
+          // it scales down rather than overflowing.
+          Expanded(
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints box) => FittedBox(
+                alignment: Alignment.bottomCenter,
+                child: SizedBox(
+                  width: box.maxWidth,
+                  child: TweenAnimationBuilder<double>(
+                    tween:
+                        Tween<double>(end: hasFood ? _tiltFilled : _tiltEmpty),
+                    duration: const Duration(milliseconds: 520),
+                    curve: Curves.easeOutCubic,
+                    builder:
+                        (BuildContext context, double tilt, Widget? plate) =>
+                            Transform(
+                      alignment: Alignment.center,
+                      // Entry (3,2) is perspective: the far edge shrinks, which is
+                      // what reads as depth instead of a flat sticker being rotated.
+                      transform: Matrix4.identity()
+                        ..setEntry(3, 2, 0.0018)
+                        ..rotateX(tilt),
+                      child: plate,
+                    ),
+                    child: TriPartitionPlate(
+                      summary: summary,
+                      aspectRatio: 2.0,
+                      bodyDepth: _plateBodyDepth,
+                      componentImages: componentImagesFor(
+                        selection,
+                        decodeWidth:
+                            (300 * MediaQuery.devicePixelRatioOf(context))
+                                .round(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: context.space.base),
         ],
+      ),
+    );
+  }
+
+  /// Tilt, in radians, of the platter with nothing on it / with food on it.
+  static const double _tiltEmpty = 0.16;
+  static const double _tiltFilled = 0.62;
+
+  /// Thickness of the platter's body, in logical pixels.
+  static const double _plateBodyDepth = 20;
+}
+
+/// Light/dark switch. Hidden when the app gives no [ThemeModeScope].
+class _ThemeToggle extends StatelessWidget {
+  const _ThemeToggle();
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeModeScope? scope = ThemeModeScope.maybeOf(context);
+    if (scope == null) return const SizedBox.shrink();
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
+    final bool ar = context.appLanguage == AppLanguage.arabic;
+    return IconButton(
+      onPressed: () {
+        MawzoonHaptics.light();
+        scope.onChanged(dark ? ThemeMode.light : ThemeMode.dark);
+      },
+      tooltip: dark
+          ? (ar ? 'الوضع الفاتح' : 'Light mode')
+          : (ar ? 'الوضع الداكن' : 'Dark mode'),
+      icon: Icon(
+        dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+        size: 22,
+        color: context.colors.inkSoft,
       ),
     );
   }
@@ -353,14 +457,17 @@ class _ThumbZone extends StatelessWidget {
           child: _TrackSwitch(track: track, onChanged: onTrackChanged),
         ),
         Flexible(
-          child: SingleChildScrollView(
-            child: switch (track) {
-              OrderTrack.curated => CuratedTrack(
-                  scale: summary.scale,
-                  selectedPlateId: curatedPlateId,
-                  onPlateChosen: onCuratedChosen,
-                ),
-              OrderTrack.architect => PlateArchitectTrack(
+          child: switch (track) {
+            // The carousel fits the height it is given rather than scrolling:
+            // a card whose text hides behind the dock is worse than a
+            // slightly shorter card.
+            OrderTrack.curated => CuratedTrack(
+                scale: summary.scale,
+                selectedPlateId: curatedPlateId,
+                onPlateChosen: onCuratedChosen,
+              ),
+            OrderTrack.architect => SingleChildScrollView(
+                child: PlateArchitectTrack(
                   selection: state.selection,
                   onOptionChosen: (option) {
                     onArchitectTouched();
@@ -371,8 +478,8 @@ class _ThumbZone extends StatelessWidget {
                     controller.clearSegment(segment);
                   },
                 ),
-            },
-          ),
+              ),
+          },
         ),
         SizedBox(height: context.space.base),
         _Insight(controller: controller, summary: summary),
@@ -395,6 +502,13 @@ class _ThumbZone extends StatelessWidget {
 class _TrackSwitch extends StatelessWidget {
   const _TrackSwitch({required this.track, required this.onChanged});
 
+  /// Share of the available width the capsule occupies.
+  static const double widthFraction = 0.72;
+
+  /// The narrowest it goes before it stops being narrower: two labels have
+  /// to fit side by side.
+  static const double minWidth = 260;
+
   final OrderTrack track;
   final ValueChanged<OrderTrack> onChanged;
 
@@ -408,6 +522,32 @@ class _TrackSwitch extends StatelessWidget {
     // Two equal halves rather than intrinsically-sized pills: the labels are
     // translated, and "Build your plate · Three steps" does not fit beside
     // "Chef's plates" on a 390pt phone at any font the brand actually uses.
+    //
+    // Narrower than the screen (reference A: ~3/4 of the width, centred):
+    // a full-bleed bar reads as a nav bar, a capsule with air around it
+    // reads as a choice. The floor keeps both labels legible on small phones.
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double width = math.max(
+          constraints.maxWidth * _TrackSwitch.widthFraction,
+          math.min(constraints.maxWidth, _TrackSwitch.minWidth),
+        );
+        return Center(
+          child: SizedBox(
+            width: width,
+            child: _buildTrack(context, language, reducedMotion, index),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTrack(
+    BuildContext context,
+    AppLanguage language,
+    bool reducedMotion,
+    int index,
+  ) {
     return Container(
       padding: EdgeInsetsDirectional.all(context.space.micro),
       decoration: BoxDecoration(
@@ -437,9 +577,9 @@ class _TrackSwitch extends StatelessWidget {
                 heightFactor: 1,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: context.colors.porcelain,
+                    color: context.colors.olive,
                     borderRadius: context.space.pillRadius,
-                    boxShadow: context.elevation.porcelain,
+                    boxShadow: context.elevation.resting,
                   ),
                 ),
               ),
@@ -464,12 +604,11 @@ class _TrackSwitch extends StatelessWidget {
                           MawzoonText(
                             option.label.resolve(language),
                             style: context.type.capsuleLabel.copyWith(
-                              fontWeight: option == track
-                                  ? FontWeight.w700
-                                  : null,
+                              fontWeight:
+                                  option == track ? FontWeight.w700 : null,
                             ),
                             color: option == track
-                                ? context.colors.ink
+                                ? context.colors.onOlive
                                 : context.colors.inkFaint,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -478,7 +617,9 @@ class _TrackSwitch extends StatelessWidget {
                           MawzoonText(
                             option.hint.resolve(language),
                             style: context.type.tagLabel,
-                            color: context.colors.inkFaint,
+                            color: option == track
+                                ? context.colors.onOlive.withValues(alpha: 0.85)
+                                : context.colors.inkFaint,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,

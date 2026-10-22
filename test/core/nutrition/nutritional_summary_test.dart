@@ -199,7 +199,13 @@ void main() {
         MawzoonCatalog.all
             .where((IngredientOption o) => o.allergens.isNotEmpty)
             .map((IngredientOption o) => o.id),
-        <String>['carb.whole_bulgur', 'carb.whole_wheat_pasta'],
+        <String>[
+          'protein.grilled_salmon',
+          'carb.whole_bulgur',
+          'carb.whole_wheat_pasta',
+          'carb.maqluba_rice',
+          'carb.spaghetti',
+        ],
       );
     });
 

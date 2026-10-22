@@ -133,6 +133,7 @@ final class OrderDraft {
     required this.payment,
     this.address,
     this.note,
+    this.phone,
   });
 
   /// The plate being ordered.
@@ -149,6 +150,10 @@ final class OrderDraft {
 
   /// A note for the kitchen.
   final String? note;
+
+  /// The guest's mobile, normalised (`+9665XXXXXXXX`; see `saudiMobile`).
+  /// Required for delivery, so the driver can call; optional for pickup.
+  final String? phone;
 
   /// The plate's nutrition, so the confirmation can restate what was ordered.
   NutritionalSummary get summary => selection.summary;
@@ -203,20 +208,35 @@ final class OrderDraft {
       );
     }
     final List<IngredientOption> gone = unavailableIn(availability);
-    if (gone.isNotEmpty) {
-      return LocalizedText(
-        ar: 'نفد ${gone.first.name.ar} — اختر بديلًا',
-        en: '${gone.first.name.en} just sold out — pick another',
-      );
-    }
+    if (gone.isNotEmpty) return soldOutBlocker(gone.first);
     if (mode == FulfilmentMode.delivery && address == null) {
-      return const LocalizedText(
-        ar: 'اختر عنوان التوصيل',
-        en: 'Choose a delivery address',
-      );
+      return needsAddressBlocker;
+    }
+    if (mode == FulfilmentMode.delivery && phone == null) {
+      return needsPhoneBlocker;
     }
     return null;
   }
+
+  /// What the guest reads when a delivery has no number to call.
+  static const LocalizedText needsPhoneBlocker = LocalizedText(
+    ar: 'أضف رقم جوالك للتوصيل',
+    en: 'Add your phone number for delivery',
+  );
+
+  /// What the guest reads when [component] can't be made any more — locally
+  /// or because the kitchen's server said so at the last moment.
+  static LocalizedText soldOutBlocker(IngredientOption component) =>
+      LocalizedText(
+        ar: 'نفد ${component.name.ar} — اختر بديلًا',
+        en: '${component.name.en} just sold out — pick another',
+      );
+
+  /// What the guest reads when a delivery has nowhere to go.
+  static const LocalizedText needsAddressBlocker = LocalizedText(
+    ar: 'اختر عنوان التوصيل',
+    en: 'Choose a delivery address',
+  );
 
   /// Returns a copy with the given fields replaced.
   ///
@@ -235,6 +255,7 @@ final class OrderDraft {
         payment: payment ?? this.payment,
         address: address ?? this.address,
         note: note ?? this.note,
+        phone: phone,
       );
 
   @override
@@ -249,8 +270,21 @@ final class OrderDraft {
           other.mode == mode &&
           other.payment == payment &&
           other.address == address &&
-          other.note == note;
+          other.note == note &&
+          other.phone == phone;
+
+  /// A copy with [phone] replaced — including by null, which [copyWith]
+  /// can't express.
+  OrderDraft withPhone(String? phone) => OrderDraft(
+        selection: selection,
+        mode: mode,
+        payment: payment,
+        address: address,
+        note: note,
+        phone: phone,
+      );
 
   @override
-  int get hashCode => Object.hash(selection, mode, payment, address, note);
+  int get hashCode =>
+      Object.hash(selection, mode, payment, address, note, phone);
 }

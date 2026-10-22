@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../domain/kitchen_station.dart';
 import '../domain/kitchen_ticket.dart';
+import 'kitchen_order_feed.dart';
 
 /// What the pass hears when a ticket is finished.
 ///
@@ -50,14 +51,32 @@ final class SilentChime implements KitchenChime {
 /// [clockInterval] is therefore seconds, not frames.
 final class KitchenBoardController extends ChangeNotifier {
   /// Creates a board.
+  ///
+  /// With a [feed], tickets come from it and every tap is written back to it;
+  /// without one, the board is filled by [receive] (tests, a demo tablet).
   KitchenBoardController({
     KitchenChime chime = const SystemKitchenChime(),
     this.clockInterval = const Duration(seconds: 10),
     DateTime Function()? now,
+    KitchenOrderFeed? feed,
   })  : _chime = chime,
-        _now = now ?? DateTime.now {
+        _now = now ?? DateTime.now,
+        _feed = feed {
     _timer = Timer.periodic(clockInterval, (_) => _onClock());
+    _subscription = feed?.watch().listen(_onSnapshot);
   }
+
+  final KitchenOrderFeed? _feed;
+  StreamSubscription<List<KitchenTicket>>? _subscription;
+
+  /// Writes still on their way to the feed. A snapshot read before they land
+  /// would briefly undo the cook's tap, so snapshots arriving meanwhile are
+  /// dropped and one fresh snapshot is fetched once they settle.
+  int _writesInFlight = 0;
+
+  /// Tickets already repaired once (see [_onSnapshot]); never retried in a
+  /// loop.
+  final Set<String> _repaired = <String>{};
 
   /// How often the urgency badges are re-evaluated.
   final Duration clockInterval;
@@ -104,6 +123,7 @@ final class KitchenBoardController extends ChangeNotifier {
     if (index < 0) return;
 
     final KitchenTicket updated = _line[index].toggle(station);
+    _writeStation(updated, station);
     if (!updated.status.isPlated) {
       _line[index] = updated;
       notifyListeners();
@@ -120,6 +140,58 @@ final class KitchenBoardController extends ChangeNotifier {
   void clearPackaged(String code) {
     if (_disposed) return;
     _packaging.removeWhere((KitchenTicket t) => t.code == code);
+    notifyListeners();
+    final KitchenOrderFeed? feed = _feed;
+    if (feed != null) _write(() => feed.markCollected(code));
+  }
+
+  void _writeStation(KitchenTicket updated, KitchenStation station) {
+    final KitchenOrderFeed? feed = _feed;
+    if (feed == null) return;
+    _write(() async {
+      await feed.setStation(
+        updated.code,
+        station,
+        done: updated.isPrepped(station),
+      );
+      if (updated.status.isPlated) await feed.markPlated(updated.code);
+    });
+  }
+
+  /// Runs one write. On failure the server's view wins: the next snapshot
+  /// puts the board back to what was actually saved.
+  void _write(Future<void> Function() write) {
+    _writesInFlight++;
+    unawaited(() async {
+      try {
+        await write();
+      } catch (error) {
+        debugPrint('kitchen write failed: $error');
+      } finally {
+        _writesInFlight--;
+        if (_writesInFlight == 0 && !_disposed) await _feed?.refresh();
+      }
+    }());
+  }
+
+  void _onSnapshot(List<KitchenTicket> tickets) {
+    if (_disposed) return;
+    if (_writesInFlight > 0) return;
+    _line
+      ..clear()
+      ..addAll(tickets.where((KitchenTicket t) => !t.status.isArchived));
+    _packaging
+      ..clear()
+      ..addAll(
+        tickets.where((KitchenTicket t) => t.status.isArchived).toList().reversed,
+      );
+    // All three stations saved but the plated step didn't land (a dropped
+    // write): finish it rather than leave a done plate stuck on the line.
+    for (final KitchenTicket t in _line.where((KitchenTicket t) => t.status.isPlated)) {
+      if (!_repaired.add(t.code)) continue;
+      final KitchenOrderFeed feed = _feed!;
+      _write(() => feed.markPlated(t.code));
+    }
     notifyListeners();
   }
 
@@ -140,6 +212,8 @@ final class KitchenBoardController extends ChangeNotifier {
     _disposed = true;
     _timer?.cancel();
     _timer = null;
+    unawaited(_subscription?.cancel());
+    _feed?.dispose();
     super.dispose();
   }
 }

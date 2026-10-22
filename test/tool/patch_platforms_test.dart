@@ -39,13 +39,28 @@ import UIKit
 }
 ''';
 
+// Exactly what `flutter create` (Flutter 3.41) writes to both macOS files.
+const String _entitlements = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+\t<key>com.apple.security.app-sandbox</key>
+\t<true/>
+</dict>
+</plist>
+''';
+
 void main() {
   final Map<String, (String Function(String), String, List<String>)> cases =
       <String, (String Function(String), String, List<String>)>{
     'manifest': (
       patchManifest,
       _manifest,
-      <String>['RECEIVE_BOOT_COMPLETED', 'ScheduledNotificationBootReceiver'],
+      <String>[
+        'android.permission.INTERNET',
+        'RECEIVE_BOOT_COMPLETED',
+        'ScheduledNotificationBootReceiver',
+      ],
     ),
     'gradle': (
       patchGradleKts,
@@ -57,10 +72,17 @@ void main() {
       _appDelegate,
       <String>['import UserNotifications', 'UNUserNotificationCenter'],
     ),
+    'macos entitlements': (
+      patchEntitlements,
+      _entitlements,
+      <String>['<key>com.apple.security.network.client</key>\n\t<true/>'],
+    ),
   };
 
-  cases.forEach((String name, (String Function(String), String, List<String>) c) {
-    final (String Function(String) patch, String template, List<String> adds) = c;
+  cases.forEach(
+      (String name, (String Function(String), String, List<String>) c) {
+    final (String Function(String) patch, String template, List<String> adds) =
+        c;
 
     test('$name: adds what the plugin needs', () {
       final String out = patch(template);

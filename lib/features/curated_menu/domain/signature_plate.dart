@@ -22,6 +22,7 @@ final class SignaturePlate {
     required this.fiber,
     required this.basePriceMinorUnits,
     this.imageAsset,
+    this.badge,
   })  : assert(id.length > 0, 'id must not be empty'),
         assert(basePriceMinorUnits > 0, 'basePriceMinorUnits must be positive');
 
@@ -52,6 +53,11 @@ final class SignaturePlate {
   /// The card's photo asset path. `null` — no dish has one yet — falls back
   /// to a warm gradient placeholder.
   final String? imageAsset;
+
+  /// An optional highlight label shown as a pill on the card's photo. `null`
+  /// on every plate but one (K5) — a single highlight makes it stand out
+  /// (Von Restorff effect) without turning every card into a claim.
+  final LocalizedText? badge;
 
   /// This plate as an editable selection at [scale].
   PlateSelection selectionAt(PortionScale scale) => PlateSelection(

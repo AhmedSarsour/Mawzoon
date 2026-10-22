@@ -4,6 +4,7 @@ import '../../../core/localization/localized_text.dart';
 import '../../../core/measure/quantity.dart';
 import '../../../core/menu/ingredient_option.dart';
 import '../../../core/menu/stock_status.dart';
+import '../../../ui_primitives/controls/mawzoon_pill_button.dart';
 import '../../../ui_primitives/motion/motion.dart';
 import '../../../ui_primitives/text/mawzoon_text.dart';
 import '../../../ui_primitives/theme/mawzoon_colors.dart';
@@ -11,6 +12,8 @@ import '../../../ui_primitives/theme/theme_context.dart';
 import '../application/manager_suite_controller.dart';
 import '../domain/plate_recipe.dart';
 import '../domain/raw_ingredient.dart';
+import 'stock_count_screen.dart';
+import 'stock_movement_dialog.dart';
 
 /// Sizing for a back-office tool.
 ///
@@ -287,9 +290,22 @@ class _StorePanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        InventoryScreen.heading(
-          context,
-          const LocalizedText(ar: 'المخزون', en: 'On the shelf'),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(
+              child: InventoryScreen.heading(
+                context,
+                const LocalizedText(ar: 'المخزون', en: 'On the shelf'),
+              ),
+            ),
+            MawzoonPillButton(
+              label:
+                  language == AppLanguage.arabic ? 'ابدأ الجرد' : 'Start count',
+              primary: false,
+              onPressed: () => showStockCount(context, controller),
+            ),
+          ],
         ),
         for (final StorageArea area in StorageArea.values) ...<Widget>[
           Padding(
@@ -308,6 +324,11 @@ class _StorePanel extends StatelessWidget {
               ingredient: ingredient,
               onHand: controller.ledger.onHand(ingredient),
               language: language,
+              onPressed: () => showStockMovement(
+                context,
+                controller: controller,
+                ingredient: ingredient,
+              ),
             ),
         ],
       ],
@@ -321,42 +342,54 @@ class _StockRow extends StatelessWidget {
     required this.ingredient,
     required this.onHand,
     required this.language,
+    required this.onPressed,
   });
 
   final RawIngredient ingredient;
   final Quantity onHand;
   final AppLanguage language;
 
+  /// Opens the delivery / write-off / count dialog for this ingredient.
+  final VoidCallback onPressed;
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsetsDirectional.symmetric(vertical: context.space.tight),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: MawzoonText(
-              ingredient.name.resolve(language),
-              style: context.type.body,
-              color: onHand.isZero
-                  ? context.colors.inkFaint
-                  : context.colors.inkSoft,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Directionality(
-            // A measurement is a Latin expression even in an Arabic sentence:
-            // "12.4 kg" must not be reordered into "kg 12.4".
-            textDirection: TextDirection.ltr,
-            child: Text(
-              onHand.format(language),
-              style: context.type.macroUnit.copyWith(
-                color:
-                    onHand.isZero ? context.colors.protein : context.colors.ink,
+    return TactileFeedbackWell(
+      onPressed: onPressed,
+      semanticLabel: '${ingredient.name.resolve(language)}, '
+          '${onHand.format(language)}',
+      child: Container(
+        constraints:
+            const BoxConstraints(minHeight: ManagerMetrics.touchTarget),
+        padding: EdgeInsetsDirectional.symmetric(vertical: context.space.tight),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: MawzoonText(
+                ingredient.name.resolve(language),
+                style: context.type.body,
+                color: onHand.isZero
+                    ? context.colors.inkFaint
+                    : context.colors.inkSoft,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-        ],
+            Directionality(
+              // A measurement is a Latin expression even in an Arabic sentence:
+              // "12.4 kg" must not be reordered into "kg 12.4".
+              textDirection: TextDirection.ltr,
+              child: Text(
+                onHand.format(language),
+                style: context.type.macroUnit.copyWith(
+                  color: onHand.isZero
+                      ? context.colors.protein
+                      : context.colors.ink,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

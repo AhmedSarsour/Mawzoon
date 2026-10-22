@@ -86,16 +86,17 @@ void main() {
       );
     });
 
-    test('four of the six carbs remain open to a coeliac guest', () {
+    test('five of the eight carbs remain open to a coeliac guest', () {
       final Iterable<CarbOption> safe = MawzoonCatalog.carbs.where(
         (CarbOption c) => PlateValidator.isServable(
           components: <IngredientOption>[c],
           profile: coeliac,
         ),
       );
-      expect(safe, hasLength(4));
+      expect(safe, hasLength(5));
       expect(safe, isNot(contains(MawzoonCatalog.wholeBulgur)));
       expect(safe, isNot(contains(MawzoonCatalog.wholeWheatPasta)));
+      expect(safe, isNot(contains(MawzoonCatalog.spaghetti)));
     });
 
     test('raises one advisory per offending component', () {

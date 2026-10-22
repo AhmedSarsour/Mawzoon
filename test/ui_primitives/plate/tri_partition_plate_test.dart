@@ -591,6 +591,82 @@ void main() {
       expect(plateCanvasPaint(), paints..drawImageRect());
     });
 
+    // P1: a photo compartment gets a porcelain band for its label. `_host`
+    // themes dark, so the band is dark porcelain at the settled 0.94 alpha.
+    final Color band =
+        MawzoonColors.dark().porcelain.withValues(alpha: 0.94);
+
+    for (final TextDirection dir in TextDirection.values) {
+      testWidgets('a resolved photo gets a porcelain label band ($dir)',
+          (WidgetTester tester) async {
+        await tester.runAsync(() async {
+          await tester.pumpWidget(
+            _host(
+              TriPartitionPlate(
+                summary: _full,
+                showAmbientWarmth: false,
+                componentImages: <PlateSegment, ImageProvider>{
+                  PlateSegment.protein: MemoryImage(_onePixelPng),
+                },
+              ),
+              direction: dir,
+            ),
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          await tester.pump();
+          await tester.pumpAndSettle();
+        });
+        expect(tester.takeException(), isNull);
+        expect(
+          plateCanvasPaint(),
+          paints
+            ..drawImageRect()
+            ..rect(color: band),
+        );
+      });
+    }
+
+    testWidgets('no photo means no band', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        _host(TriPartitionPlate(summary: _full, showAmbientWarmth: false)),
+      );
+      await tester.pumpAndSettle();
+      expect(plateCanvasPaint(), isNot(paints..rect(color: band)));
+    });
+
+    for (final bool dark in <bool>[false, true]) {
+      test('band label clears 3:1 on porcelain (${dark ? 'dark' : 'light'})',
+          () {
+        final MawzoonColors c =
+            dark ? MawzoonColors.dark() : MawzoonColors.light();
+        for (int ordinal = 0; ordinal < 3; ordinal++) {
+          final Color ink = PlateCanvasPainter.bandLabelInk(
+            c,
+            c.toneForSegmentOrdinal(ordinal),
+          );
+          expect(
+            MawzoonBrand.contrastRatio(ink, c.porcelain),
+            greaterThanOrEqualTo(3),
+            reason: 'ordinal $ordinal',
+          );
+        }
+      });
+    }
+
+    test('a tone too pale for the band is pulled toward ink until it reads',
+        () {
+      // Every real tone clears 3:1 on porcelain today, so this uses one that
+      // doesn't, to prove the safety net works for a future palette change.
+      final MawzoonColors c = MawzoonColors.light();
+      const Color pale = Color(0xFFE8D9B0);
+      final Color ink = PlateCanvasPainter.bandLabelInk(c, pale);
+      expect(ink, isNot(pale));
+      expect(
+        MawzoonBrand.contrastRatio(ink, c.porcelain),
+        greaterThanOrEqualTo(3),
+      );
+    });
+
     testWidgets('no provider means no image draw call, same as today',
         (WidgetTester tester) async {
       await tester.pumpWidget(

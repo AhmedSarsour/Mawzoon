@@ -1,7 +1,8 @@
 # Home overhaul — ceramic platter, editorial chef cards, sliding tabs
 
-Status: **shipped: C1, T1, T2 (already existed), C2, C3, K3, K1, K2.**
-**Remaining: S1. Blocked: C4 (needs Ahmed).** Mockup:
+Status: **closed. All IDs shipped; C4 resolved as "keep existing ring".** K1/K2's card
+layout and S1's pill colour are superseded by `docs/plans/home-premium-restaurant.md`.
+Mockup:
 https://claude.ai/artifact/PXH4tpZB3YoaGA424esRoo (frames 1–3 = build this; frame 4 = the
 literal spec, rejected).
 
@@ -128,11 +129,13 @@ and the test hangs/fails silently for the wrong reason; do not "fix" this by sho
 or removing that delay if a future test here looks slow. Proven non-vacuous: forced the
 image branch off, watched the paint-call assertion fail, restored, reran green.
 
-### C4 — Perimeter balance halo — ⛔ BLOCKED, needs Ahmed
+### C4 — Perimeter balance halo — ✅ RESOLVED: keep the existing ring
 The ring already exists: `PlateCanvasPainter._paintRing` draws one arc per filled
 macro, sized by **energy share**, in macro tones, blending to olive on balance lock
-(`BalanceLockChoreography`). The brief's single olive halo would replace that.
-Do not implement until Ahmed chooses: keep existing ring (default) or replace it.
+(`BalanceLockChoreography`). Ahmed's approved reference (`docs/design/references/
+white_mode.png`) shows the *complete* plate, which is exactly the existing ring after
+it blends to olive — so nothing to build. Superseded by
+`docs/plans/home-premium-restaurant.md`.
 Note: the tray split is **0.40/0.34/0.26** (`PlateGeometry.defaultAreaFractions`),
 not the brief's 45/35/20 — don't change it.
 
@@ -189,13 +192,21 @@ this plan's original table (0,1,2,3,10,11,99,100,101,102,103,111,555,1000). Non-
 narrowed the `3..10` plural band to `3..9`, watched the `10` case fail, restored, reran
 green.
 
-### S1 — Sliding segmented control
-Rewrite `_TrackSwitch` in `order_home_screen.dart`: track = `colors.track` pill; one
-`AnimatedAlign`/`AnimatedPositionedDirectional` porcelain pill with T1 shadow slides
-between halves (320ms, `Curves.easeOutCubic`; `MediaQuery.disableAnimations` → 0ms).
-Active label `ink` w700, inactive `inkFaint`. Keep existing hint copy
-(`نقرة واحدة` / `ثلاث خطوات`) — no parentheses, no digit "3".
-Keep `TactileFeedbackWell` per half for semantics/haptics; keep `Semantics(selected:)`.
+### S1 — Sliding segmented control — ✅ SHIPPED
+`_TrackSwitch` rewritten: `colors.track` pill container, one `AnimatedAlign` (inside
+`Positioned.fill` inside a `Stack`) carries the porcelain pill (T1 shadow) between the
+two halves — `AlignmentDirectional`, so it mirrors under RTL automatically, no manual
+left/right branching. 320ms `Curves.easeOutCubic`; `Duration.zero` under
+`MediaQuery.maybeDisableAnimationsOf`. Active label is `ink` + `FontWeight.w700`,
+inactive `inkFaint` — matches the plan; hint copy untouched. Per-cell decoration
+(the old selected fill + hairline border) removed — the sliding pill is now the only
+selection signal, so a cell and a competing decoration can't say different things.
+`TactileFeedbackWell` (and its built-in `Semantics(selected:)`) kept per half.
+Tests: new "sliding track switch (S1)" group in `order_home_screen_test.dart` — tap
+retargets the `AnimatedAlign` immediately then reaches it after settling; reduced motion
+sets `duration: Duration.zero`; the selected tab's semantics node reports `isSelected`.
+Non-vacuous: forced `duration` to always be 320ms (reduced-motion case failed) and
+forced `index` to always be 0 (tap-retarget case failed), restored each, reran green.
 
 ## Edge cases
 
@@ -246,8 +257,21 @@ Keep `TactileFeedbackWell` per half for semantics/haptics; keep `Semantics(selec
   `test/ui_primitives/plate/plate_golden_test.dart`); don't introduce a new golden lib.
 - **Known broken before this plan (not ours):** `test/widget_test.dart` (refers to
   `MyApp`, 1 analyzer error) and 13 goldens in cart_checkout / kitchen_display /
-  manager_suite. Count only new failures. Plate + order_home goldens were regenerated
-  for C1; regenerate again after C2/C3/K1/S1 and eyeball them.
+  manager_suite. Still exactly 14 failures / 1 analyzer error after every ID above —
+  reverify with a git-stash isolation (see below) before assuming a 15th is also
+  pre-existing; don't assume.
 - Tests: there is no `.claude/scripts/quiet-test.sh`; use `--reporter=failures-only`.
-- Don't touch `MacroCapsule` (dock) beyond reading `porcelain` if trivial.
-- Update this file in the same pass: mark shipped IDs, delete wrong guidance.
+- `MacroCapsule` (dock) was never touched — out of scope, C4 is what would touch it.
+- All plate + order_home goldens are regenerated through S1 (10 + 4 files). If C4 ships
+  later, regenerate `test/ui_primitives/plate/goldens/*` and
+  `test/features/order_home/goldens/*` again and eyeball them — the ring is the one
+  thing C4 would change that these goldens cover.
+- **Real image decode in a widget test needs `tester.runAsync` + a real
+  `Future.delayed`**, not just extra `pump()` calls — see C3 above. Cost me a debug
+  session; don't rediscover it.
+- **Isolating "is this failure mine?"**: `git stash push -q -- <files>`, rerun, `git
+  stash pop -q`. A shell variable holding multiple paths does not word-split the way
+  you'd expect in zsh — write every path out in the command rather than interpolating a
+  variable.
+- Update this file in the same pass: mark shipped IDs, delete wrong guidance. Every ID
+  above practiced what it preaches.
