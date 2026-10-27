@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../order_tracking/domain/tracked_order.dart';
 import '../domain/guest_phone.dart';
 import '../domain/order_placement.dart';
 
@@ -14,8 +15,12 @@ class OrderGatewayScope extends InheritedWidget {
     required super.child,
     this.onMenuStale,
     this.phoneMemory,
+    this.tracker,
     super.key,
   });
+
+  /// Reads and cancels the guest's own orders (receipt and tracking screens).
+  final OrderTracker? tracker;
 
   /// Where the guest's delivery phone is remembered between orders.
   final PhoneMemory? phoneMemory;
@@ -36,5 +41,6 @@ class OrderGatewayScope extends InheritedWidget {
   bool updateShouldNotify(OrderGatewayScope oldWidget) =>
       gateway != oldWidget.gateway ||
       onMenuStale != oldWidget.onMenuStale ||
-      phoneMemory != oldWidget.phoneMemory;
+      phoneMemory != oldWidget.phoneMemory ||
+      tracker != oldWidget.tracker;
 }

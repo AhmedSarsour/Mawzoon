@@ -27,19 +27,20 @@ Finder get _confirm => find.byWidgetPredicate(
     );
 
 void main() {
-  group('saudiMobile', () {
+  group('israeliMobile', () {
     test('accepts the ways people type it', () {
       for (final String typed in <String>[
         '0501234567',
         '501234567',
-        '+966501234567',
-        '+966 50 123 4567',
-        '00966501234567',
-        '966501234567',
         '050-123-4567',
+        '050 123 4567',
+        '+972501234567',
+        '+972 50-123-4567',
+        '00972501234567',
+        '972501234567',
         '٠٥٠١٢٣٤٥٦٧', // Arabic-Indic, from an Arabic keyboard
       ]) {
-        expect(saudiMobile(typed), '+966501234567', reason: typed);
+        expect(israeliMobile(typed), '+972501234567', reason: typed);
       }
     });
 
@@ -48,17 +49,17 @@ void main() {
         '',
         '05012345',
         '05012345678',
-        '0401234567', // landline prefix, not mobile
-        '+971501234567', // not Saudi
+        '0212345678', // landline prefix, not mobile
+        '+966501234567', // Saudi, from an old install
         'call me',
       ]) {
-        expect(saudiMobile(typed), isNull, reason: typed);
+        expect(israeliMobile(typed), isNull, reason: typed);
       }
     });
 
-    test('reads back grouped, edits as the national part', () {
-      expect(formatSaudiMobile('+966501234567'), '+966 50 123 4567');
-      expect(localPart('+966501234567'), '501234567');
+    test('reads back the local way, edits with the leading 0', () {
+      expect(formatIsraeliMobile('+972501234567'), '050-123-4567');
+      expect(localPart('+972501234567'), '0501234567');
       expect(localPart(null), '');
     });
   });
@@ -67,20 +68,20 @@ void main() {
     final OrderDraft delivery = OrderDraft(
       selection: _plate,
       mode: FulfilmentMode.delivery,
-      payment: PaymentMethod.cash,
+      payment: PaymentMethod.card,
       address: SavedPlaces.home,
     );
     expect(delivery.blocker, OrderDraft.needsPhoneBlocker);
     expect(delivery.copyWith(mode: FulfilmentMode.pickup).blocker, isNull);
 
-    final OrderDraft withPhone = delivery.withPhone('+966501234567');
+    final OrderDraft withPhone = delivery.withPhone('+972501234567');
     expect(withPhone.blocker, isNull);
     expect(
-      withPhone.copyWith(payment: PaymentMethod.wallet).phone,
-      '+966501234567',
+      withPhone.copyWith(note: 'no onions').phone,
+      '+972501234567',
       reason: 'copyWith keeps the phone',
     );
-    expect(placeOrderPayload(withPhone)['customer_phone'], '+966501234567');
+    expect(placeOrderPayload(withPhone)['customer_phone'], '+972501234567');
     expect(withPhone.withPhone(null).phone, isNull);
   });
 
@@ -90,8 +91,8 @@ void main() {
     });
     final SharedPreferencesPhoneMemory memory = SharedPreferencesPhoneMemory();
     expect(await memory.read(), isNull);
-    await memory.write('+966501234567');
-    expect(await memory.read(), '+966501234567');
+    await memory.write('+972501234567');
+    expect(await memory.read(), '+972501234567');
   });
 
   group('the phone in the sheet', () {
@@ -104,7 +105,14 @@ void main() {
           locale: const Locale('ar'),
           supportedLocales: mawzoonSupportedLocales,
           localizationsDelegates: mawzoonLocalizationsDelegates,
-          home: Scaffold(body: CheckoutSheet(selection: _plate, phone: phone)),
+          home: Scaffold(
+            body: CheckoutSheet(
+              selection: _plate,
+              phone: phone,
+              offerDelivery: true,
+              offerCard: true,
+            ),
+          ),
         ),
       );
       await tester.pump(const Duration(milliseconds: 300));
@@ -142,16 +150,16 @@ void main() {
 
     testWidgets('remembered: one line, and "change" opens it pre-filled',
         (WidgetTester tester) async {
-      await open(tester, phone: '+966501234567');
+      await open(tester, phone: '+972501234567');
       expect(find.byType(TextField), findsNothing);
-      expect(find.text('+966 50 123 4567'), findsOneWidget);
+      expect(find.text('050-123-4567'), findsOneWidget);
       expect(enabled(tester), isTrue);
 
       await tester.tap(find.text('تغيير'));
       await tester.pump(const Duration(milliseconds: 300));
       expect(
         tester.widget<TextField>(find.byType(TextField)).controller!.text,
-        '501234567',
+        '0501234567',
       );
       expect(enabled(tester), isTrue, reason: 'still the same valid number');
     });

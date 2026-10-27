@@ -24,6 +24,7 @@ void main() {
     required Brightness brightness,
     AppLanguage language = AppLanguage.arabic,
     String? phone,
+    bool fullSheet = false,
   }) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -37,7 +38,12 @@ void main() {
         home: Scaffold(
           body: Align(
             alignment: Alignment.bottomCenter,
-            child: CheckoutSheet(selection: plate, phone: phone),
+            child: CheckoutSheet(
+              selection: plate,
+              phone: phone,
+              offerDelivery: fullSheet,
+              offerCard: fullSheet,
+            ),
           ),
         ),
       ),
@@ -57,17 +63,24 @@ void main() {
     await shoot(t, 'checkout_light', brightness: Brightness.light);
   });
 
-  testWidgets('sheet, light, phone remembered', (WidgetTester t) async {
+  // Delivery and card switched on (built, not launched): remembered phone.
+  testWidgets('sheet, light, delivery on, phone remembered',
+      (WidgetTester t) async {
     await shoot(
       t,
       'checkout_light_remembered',
       brightness: Brightness.light,
-      phone: '+966501234567',
+      phone: '+972501234567',
+      fullSheet: true,
     );
   });
 
   testWidgets('sheet, english', (WidgetTester t) async {
-    await shoot(t, 'checkout_en',
-        brightness: Brightness.dark, language: AppLanguage.english,);
+    await shoot(
+      t,
+      'checkout_en',
+      brightness: Brightness.dark,
+      language: AppLanguage.english,
+    );
   });
 }

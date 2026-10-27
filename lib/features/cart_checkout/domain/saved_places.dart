@@ -11,7 +11,7 @@ abstract final class SavedPlaces {
   static const DeliveryAddress home = DeliveryAddress(
     id: 'address.home',
     label: LocalizedText(ar: 'المنزل', en: 'Home'),
-    line: 'شارع الأمير سلطان، مبنى ٤٤٢٩',
+    line: 'شارع الأمير سلطان، مبنى 4429',
     district: 'العليا',
     directions: 'الدور الثالث، الباب الأيمن',
     isDefault: true,

@@ -17,10 +17,13 @@ import '../../cart_checkout/domain/delivery_address.dart';
 import '../../cart_checkout/domain/order_draft.dart';
 import '../../cart_checkout/presentation/checkout_sheet.dart';
 import '../../cart_checkout/domain/guest_phone.dart';
+import '../../cart_checkout/domain/order_placement.dart';
 import '../../cart_checkout/presentation/order_gateway_scope.dart';
 import '../../curated_menu/domain/signature_plate.dart';
 import '../../curated_menu/presentation/curated_track.dart';
 import '../../mindful_satiety/application/reflection_controller.dart';
+import '../../order_tracking/domain/tracked_order.dart';
+import '../../order_tracking/presentation/order_status_screen.dart';
 import '../../mindful_satiety/domain/reflection_journal.dart';
 import '../../mindful_satiety/domain/satiety_insight.dart';
 import '../../mindful_satiety/presentation/reflection_sheet.dart';
@@ -117,6 +120,31 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
     super.initState();
     // The one subscription that turns domain intent into device feedback.
     _events = _controller.events.listen(MawzoonHaptics.forEvent);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _resumeOpenOrder());
+  }
+
+  /// Reopening the app with an order still open lands on that order, not the
+  /// menu (A5). Once per launch; the guest can back out to the menu.
+  Future<void> _resumeOpenOrder() async {
+    final OrderTracker? tracker = OrderGatewayScope.maybeOf(context)?.tracker;
+    if (tracker == null) return;
+    final TrackedOrder? open = await tracker.openOrder();
+    if (open == null || !mounted) return;
+    _showOrder(open.id, initial: open, tracker: tracker);
+  }
+
+  void _showOrder(String id, {TrackedOrder? initial, OrderTracker? tracker}) {
+    unawaited(
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (BuildContext context) => OrderStatusScreen(
+            orderId: id,
+            initial: initial,
+            tracker: tracker,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -136,7 +164,8 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
   /// The sheet only closes on the kitchen's yes, so the number shown here is
   /// the one called out at the pass.
   Future<void> _openCheckout() async {
-    final PhoneMemory? phones = OrderGatewayScope.maybeOf(context)?.phoneMemory;
+    final OrderGatewayScope? scope = OrderGatewayScope.maybeOf(context);
+    final PhoneMemory? phones = scope?.phoneMemory;
     final String? phone = await phones?.read();
     if (!mounted) return;
     final CheckoutResult? result = await showCheckoutSheet(
@@ -145,29 +174,55 @@ class _OrderHomeScreenState extends State<OrderHomeScreen> {
       phone: phone,
     );
     if (result == null || !mounted) return;
+    final String? openId = result.openOrderId;
+    if (openId != null) {
+      // Refused: one unpaid order at a time. Show that one; keep the plate.
+      _showOrder(openId, tracker: scope?.tracker);
+      return;
+    }
     final OrderDraft placed = result.draft;
     final String? usedPhone = placed.phone;
     if (result.placed != null && usedPhone != null && usedPhone != phone) {
       unawaited(phones?.write(usedPhone));
     }
-    final String code = result.placed == null ? '' : ' ${result.placed!.code}';
+    final OrderPlaced? order = result.placed;
 
     MawzoonHaptics.medium();
     final AppLanguage language = context.appLanguage;
     unawaited(
       ReflectionScope.maybeOf(context)?.orderPlaced(placed, language: language),
     );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: MawzoonText(
-          language == AppLanguage.arabic
-              ? 'تم استلام طلبك$code · ${placed.mode.estimate.resolve(language)}'
-              : 'Order in$code · ${placed.mode.estimate.resolve(language)}',
-          style: context.type.capsuleLabel,
-          color: context.colors.ink,
+    if (order != null) {
+      // Not the old "received" snackbar: an unpaid order is not with the
+      // kitchen yet, and the receipt says so and shows when it expires.
+      _showOrder(
+        order.orderId,
+        tracker: scope?.tracker,
+        initial: TrackedOrder(
+          id: order.orderId,
+          number: order.orderNumber,
+          stage: order.awaitingPayment
+              ? OrderStage.awaitingPayment
+              : OrderStage.paid,
+          total: order.total,
+          dueAt: order.paymentDueAt,
+          isDelivery: placed.mode == FulfilmentMode.delivery,
         ),
-      ),
-    );
+      );
+    } else {
+      // No gateway (demo/preview): confirmed locally.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: MawzoonText(
+            language == AppLanguage.arabic
+                ? 'تم استلام طلبك · ${placed.mode.estimate.resolve(language)}'
+                : 'Order in · ${placed.mode.estimate.resolve(language)}',
+            style: context.type.capsuleLabel,
+            color: context.colors.ink,
+          ),
+        ),
+      );
+    }
     _controller.reset();
     setState(() => _curatedPlateId = null);
   }
@@ -488,7 +543,8 @@ class _ThumbZone extends StatelessWidget {
           total: summary.isComplete
               ? PriceBreakdown.forPlate(
                   selection: state.selection,
-                  mode: FulfilmentMode.delivery,
+                  // The price checkout opens on, so the two never disagree.
+                  mode: defaultFulfilment,
                 ).total
               : null,
           onScaleChanged: controller.setScale,

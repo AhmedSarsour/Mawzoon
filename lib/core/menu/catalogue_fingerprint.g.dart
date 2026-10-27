@@ -2,4 +2,4 @@
 
 /// Hash of the menu, prices and recipes this build was compiled with. Sent with
 /// every order; the server refuses an order whose fingerprint differs from its own.
-const String catalogueFingerprint = '7b9236aabfaeb181';
+const String catalogueFingerprint = '1de24e44b9928488';

@@ -131,7 +131,7 @@ abstract final class MawzoonRecipes {
           ingredient: RawStore.ribeye,
           amount: Quantity.grams(205),
           note: const LocalizedText(
-            ar: 'فقد ٣٠٪ في التدخين والراحة',
+            ar: 'فقد 30% في التدخين والراحة',
             en: '30% loss to the smoke and the rest',
           ),
         ),
@@ -182,7 +182,7 @@ abstract final class MawzoonRecipes {
           ingredient: RawStore.beefChuck,
           amount: Quantity.grams(240),
           note: const LocalizedText(
-            ar: 'الطهي البطيء يفقد ٤٠٪',
+            ar: 'الطهي البطيء يفقد 40%',
             en: 'A long braise gives up 40%',
           ),
         ),

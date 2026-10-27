@@ -12,6 +12,9 @@ import 'delivery_address.dart';
 /// Itemised rather than reduced to a total, because a guest who sees a figure
 /// they did not expect should be able to find out why without contacting
 /// anyone. Every line here is derived; nothing is stored.
+///
+/// Prices include VAT (Israeli consumer law: the price shown is the price
+/// paid), so the VAT is extracted from the total, not added on top.
 final class PriceBreakdown {
   const PriceBreakdown._({
     required this.base,
@@ -33,14 +36,14 @@ final class PriceBreakdown {
     };
     final Money delivery =
         mode == FulfilmentMode.delivery ? standardDeliveryFee : Money.zero;
-    final Money taxable = basePlatePrice + surcharges + uplift + delivery;
+    final Money total = basePlatePrice + surcharges + uplift + delivery;
 
     return PriceBreakdown._(
       base: basePlatePrice,
       componentSurcharges: surcharges,
       loadUplift: uplift,
       deliveryFee: delivery,
-      tax: taxable.percentage(vatRate),
+      tax: total.includedTax(vatBasisPoints),
     );
   }
 
@@ -54,8 +57,9 @@ final class PriceBreakdown {
   /// What delivery costs when the guest chooses it.
   static const Money standardDeliveryFee = Money(1200);
 
-  /// Saudi VAT.
-  static const double vatRate = 0.15;
+  /// Israeli VAT, in basis points (1800 = 18%). 0 for an exempt dealer
+  /// (עוסק פטור). Mirrored in `public.pricing.vat_basis_points`.
+  static const int vatBasisPoints = 1800;
 
   /// The plate before components.
   final Money base;
@@ -69,16 +73,14 @@ final class PriceBreakdown {
   /// Delivery, or zero for pickup.
   final Money deliveryFee;
 
-  /// VAT on everything above.
+  /// The VAT already inside [total].
   final Money tax;
 
-  /// Everything except tax.
-  Money get subtotal => base + componentSurcharges + loadUplift + deliveryFee;
+  /// What the guest pays, VAT included.
+  Money get total => base + componentSurcharges + loadUplift + deliveryFee;
 
-  /// What the guest pays.
-  Money get total => subtotal + tax;
-
-  /// The lines a receipt shows, in order, skipping the zero ones.
+  /// The charges a receipt shows, in order, skipping the zero ones. They add
+  /// up to [total]; VAT is inside them, not another line ([includedTaxNote]).
   ///
   /// A row reading "Delivery 0.00" on a pickup order is noise pretending to be
   /// transparency.
@@ -86,7 +88,10 @@ final class PriceBreakdown {
         (const LocalizedText(ar: 'الطبق', en: 'Plate'), base),
         if (!componentSurcharges.isZero)
           (
-            const LocalizedText(ar: 'إضافات المكوّنات', en: 'Component upgrades'),
+            const LocalizedText(
+              ar: 'إضافات المكوّنات',
+              en: 'Component upgrades',
+            ),
             componentSurcharges
           ),
         if (!loadUplift.isZero)
@@ -96,11 +101,19 @@ final class PriceBreakdown {
           ),
         if (!deliveryFee.isZero)
           (const LocalizedText(ar: 'التوصيل', en: 'Delivery'), deliveryFee),
-        (
-          const LocalizedText(ar: 'ضريبة القيمة المضافة', en: 'VAT'),
-          tax,
-        ),
       ];
+
+  /// "Includes 18% VAT: 7.47 ₪" — or null with no VAT (exempt dealer).
+  (LocalizedText, Money)? get includedTaxNote {
+    if (vatBasisPoints == 0) return null;
+    final String rate = vatBasisPoints % 100 == 0
+        ? '${vatBasisPoints ~/ 100}'
+        : (vatBasisPoints / 100).toString();
+    return (
+      LocalizedText(ar: 'يشمل ضريبة $rate%', en: 'Includes $rate% VAT'),
+      tax,
+    );
+  }
 
   @override
   String toString() => 'PriceBreakdown(total: $total)';
@@ -151,7 +164,7 @@ final class OrderDraft {
   /// A note for the kitchen.
   final String? note;
 
-  /// The guest's mobile, normalised (`+9665XXXXXXXX`; see `saudiMobile`).
+  /// The guest's mobile, normalised (`+9725XXXXXXXX`; see `israeliMobile`).
   /// Required for delivery, so the driver can call; optional for pickup.
   final String? phone;
 
@@ -215,6 +228,9 @@ final class OrderDraft {
     if (mode == FulfilmentMode.delivery && phone == null) {
       return needsPhoneBlocker;
     }
+    if (mode == FulfilmentMode.delivery && payment.pickupOnly) {
+      return PaymentMethod.pickupOnlyReason;
+    }
     return null;
   }
 
@@ -237,6 +253,15 @@ final class OrderDraft {
     ar: 'اختر عنوان التوصيل',
     en: 'Choose a delivery address',
   );
+
+  /// A copy for [next] mode. Moving to delivery swaps a pickup-only payment
+  /// for card, so the guest isn't left holding a choice that can't work.
+  OrderDraft withMode(FulfilmentMode next) => copyWith(
+        mode: next,
+        payment: next == FulfilmentMode.delivery && payment.pickupOnly
+            ? PaymentMethod.card
+            : null,
+      );
 
   /// Returns a copy with the given fields replaced.
   ///

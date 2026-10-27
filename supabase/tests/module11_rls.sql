@@ -9,14 +9,19 @@ insert into auth.users (id, aud, role, is_anonymous) values
   ('bbbbbbbb-0000-0000-0000-00000000000b', 'authenticated', 'authenticated', true),
   ('55555555-0000-0000-0000-000000000005', 'authenticated', 'authenticated', false);
 update public.profiles set is_staff = true where id = '55555555-0000-0000-0000-000000000005';
+update public.pricing set delivery_enabled = true, card_payment_enabled = true; -- shape tests below insert a delivery (rolled back)
 
 insert into public.orders (id, idempotency_key, customer_id, order_type, payment_method,
   total_price_minor_units, total_calories, total_protein_g, total_carbs_g, total_fats_g)
 values
   ('0a0a0a0a-0000-0000-0000-00000000000a', gen_random_uuid(),
-   'aaaaaaaa-0000-0000-0000-00000000000a', 'PICKUP', 'cash', 6400, 550, 45, 50, 15),
+   'aaaaaaaa-0000-0000-0000-00000000000a', 'PICKUP', 'counter', 6400, 550, 45, 50, 15),
   ('0b0b0b0b-0000-0000-0000-00000000000b', gen_random_uuid(),
-   'bbbbbbbb-0000-0000-0000-00000000000b', 'PICKUP', 'cash', 6400, 550, 45, 50, 15);
+   'bbbbbbbb-0000-0000-0000-00000000000b', 'PICKUP', 'counter', 6400, 550, 45, 50, 15);
+-- New orders start unpaid (Module 12); these play paid ones already on the board.
+select set_config('mawzoon.paying', 'on', true);
+update public.orders set status = 'PENDING';
+select set_config('mawzoon.paying', 'off', true);
 insert into public.order_items (id, order_id, item_type, title, protein_id, protein_weight_g,
   carb_id, carb_weight_g, fiber_id, fiber_weight_g, volume_type, price_minor_units)
 values
@@ -32,7 +37,7 @@ do $$ begin
   begin
     insert into public.orders (idempotency_key, customer_id, order_type, payment_method,
       total_price_minor_units, total_calories, total_protein_g, total_carbs_g, total_fats_g)
-    values (gen_random_uuid(), 'aaaaaaaa-0000-0000-0000-00000000000a', 'DELIVERY', 'cash',
+    values (gen_random_uuid(), 'aaaaaaaa-0000-0000-0000-00000000000a', 'DELIVERY', 'card',
       1, 1, 1, 1, 1);
     raise exception 'FAIL: delivery order without an address was accepted';
   exception when check_violation then null; end;
@@ -91,7 +96,7 @@ begin
   begin
     insert into public.orders (idempotency_key, customer_id, order_type, payment_method,
       total_price_minor_units, total_calories, total_protein_g, total_carbs_g, total_fats_g)
-    values (gen_random_uuid(), 'aaaaaaaa-0000-0000-0000-00000000000a', 'PICKUP', 'cash', 1, 1, 1, 1, 1);
+    values (gen_random_uuid(), 'aaaaaaaa-0000-0000-0000-00000000000a', 'PICKUP', 'counter', 1, 1, 1, 1, 1);
     raise exception 'FAIL: guest inserted an order directly (price unchecked)';
   exception when insufficient_privilege then null; end;
   begin

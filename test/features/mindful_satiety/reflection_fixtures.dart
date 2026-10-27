@@ -68,5 +68,5 @@ OrderDraft draft({
         scale: scale,
       ),
       mode: mode,
-      payment: PaymentMethod.wallet,
+      payment: PaymentMethod.card,
     );

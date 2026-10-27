@@ -30,7 +30,7 @@ OrderDraft _draft(
     OrderDraft(
       selection: selection,
       mode: mode,
-      payment: PaymentMethod.cash,
+      payment: PaymentMethod.counter,
       address: SavedPlaces.home,
     );
 
@@ -38,15 +38,21 @@ PostgrestException _pg(
   String message, {
   String code = 'P0001',
   Object? details,
+  String? hint,
 }) =>
-    PostgrestException(message: message, code: code, details: details);
+    PostgrestException(
+      message: message,
+      code: code,
+      details: details,
+      hint: hint,
+    );
 
 void main() {
   group('placeOrderPayload', () {
     test('a custom pickup sends choices, never a price', () {
       final Map<String, Object?> p = placeOrderPayload(_draft(_custom));
       expect(p['order_type'], 'PICKUP');
-      expect(p['payment_method'], 'cash');
+      expect(p['payment_method'], 'counter');
       expect(p['volume'], 'STANDARD');
       expect(p['protein_id'], MawzoonCatalog.grilledSalmon.id);
       expect(p['carb_id'], MawzoonCatalog.steamedBasmati.id);
@@ -125,6 +131,23 @@ void main() {
       );
     });
 
+    test('unpaid_order_open names the open order', () {
+      final OrderRefused r = outcomeFromError(
+        _pg('unpaid_order_open', details: 'order-uuid', hint: '204'),
+      ) as OrderRefused;
+      expect(r.reason, RefusalReason.unpaidOrderOpen);
+      expect(r.openOrderId, 'order-uuid');
+      expect(r.openOrderNumber, 204);
+      expect(r.retryable, isFalse);
+    });
+
+    test('counter_blocked is its own reason, not a retry', () {
+      final OrderRefused r =
+          outcomeFromError(_pg('counter_blocked')) as OrderRefused;
+      expect(r.reason, RefusalReason.counterBlocked);
+      expect(r.retryable, isFalse);
+    });
+
     test('a Postgres answer we did not expect: nothing placed, retryable', () {
       final OrderRefused r =
           outcomeFromError(_pg('new row violates check', code: '23514'))
@@ -159,6 +182,25 @@ void main() {
     expect(placed.code, 'M-123');
     expect(placed.total, const Money(7015));
     expect(placed.replayed, isTrue);
+    expect(placed.awaitingPayment, isFalse);
+    expect(placed.paymentDueAt, isNull);
+  });
+
+  test('orderPlacedFrom reads an unpaid order and its deadline', () {
+    final OrderPlaced placed = orderPlacedFrom(<String, dynamic>{
+      'order_id': 'abc',
+      'order_number': 124,
+      'total_minor_units': 4900,
+      'replayed': false,
+      'status': 'AWAITING_PAYMENT',
+      'payment_method': 'counter',
+      'payment_due_at': '2026-10-22T20:45:00.123+00:00',
+    });
+    expect(placed.awaitingPayment, isTrue);
+    expect(
+      placed.paymentDueAt,
+      DateTime.utc(2026, 10, 22, 20, 45, 0, 123),
+    );
   });
 
   test('availabilityFromRows keeps reasons and never invents a sale', () {

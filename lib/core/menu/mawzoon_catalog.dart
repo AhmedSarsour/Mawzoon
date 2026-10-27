@@ -52,7 +52,7 @@ abstract final class MawzoonCatalog {
     surchargeMinorUnits: 800,
     doneness: Doneness.mediumRare,
     kitchenNote: LocalizedText(
-      ar: 'دخّن ١٢ دقيقة، ثم أرح ١٠ دقائق قبل التقطيع',
+      ar: 'دخّن 12 دقيقة، ثم أرح 10 دقائق قبل التقطيع',
       en: 'Smoke 12 min, rest 10 before slicing',
     ),
   );
@@ -60,7 +60,8 @@ abstract final class MawzoonCatalog {
   /// Smashed lean beef — thin patties pressed hard onto the plancha.
   static const ProteinOption smashedLeanBeef = ProteinOption(
     id: 'protein.smashed_lean_beef',
-    name: LocalizedText(ar: 'لحم بقري مسحوق قليل الدهن', en: 'Smashed Lean Beef'),
+    name:
+        LocalizedText(ar: 'لحم بقري مسحوق قليل الدهن', en: 'Smashed Lean Beef'),
     description: LocalizedText(
       ar: 'أقراص رفيعة مضغوطة على الصاج حتى تتكوّن قشرة مقرمشة على الحافة.',
       en: 'Pressed thin on the plancha until the edges go lacy and crisp.',
@@ -83,7 +84,7 @@ abstract final class MawzoonCatalog {
     },
     doneness: Doneness.mediumWell,
     kitchenNote: LocalizedText(
-      ar: 'اضغط على الصاج ٤٥ ثانية لكل وجه',
+      ar: 'اضغط على الصاج 45 ثانية لكل وجه',
       en: 'Press on the plancha, 45s a side',
     ),
   );
@@ -119,7 +120,7 @@ abstract final class MawzoonCatalog {
     },
     doneness: Doneness.wellDone,
     kitchenNote: LocalizedText(
-      ar: 'حرارة داخلية ٧٤°م — لا تتجاوزها',
+      ar: 'حرارة داخلية 74°م — لا تتجاوزها',
       en: 'Core 74°C, no further',
     ),
   );
@@ -253,7 +254,7 @@ abstract final class MawzoonCatalog {
     surchargeMinorUnits: 600,
     doneness: Doneness.mediumWell,
     kitchenNote: LocalizedText(
-      ar: 'اشوِ ٣ دقائق للوجه، ولا تقلّبه أكثر من مرة',
+      ar: 'اشوِ 3 دقائق للوجه، ولا تقلّبه أكثر من مرة',
       en: 'Grill 3 min a side, turn once only',
     ),
   );
@@ -292,7 +293,7 @@ abstract final class MawzoonCatalog {
     },
     glycemicIndex: 75,
     kitchenNote: LocalizedText(
-      ar: 'قلاية هوائية ١٩٠°م، ١٤ دقيقة، رجّها مرة',
+      ar: 'قلاية هوائية 190°م، 14 دقيقة، رجّها مرة',
       en: 'Air fryer 190°C, 14 min, shake once',
     ),
   );
@@ -323,7 +324,7 @@ abstract final class MawzoonCatalog {
     },
     glycemicIndex: 52,
     kitchenNote: LocalizedText(
-      ar: 'بخار ١٨ دقيقة، ثم افرد الحبّات بالشوكة',
+      ar: 'بخار 18 دقيقة، ثم افرد الحبّات بالشوكة',
       en: 'Steam 18 min, fork through before plating',
     ),
   );
@@ -356,7 +357,7 @@ abstract final class MawzoonCatalog {
     },
     glycemicIndex: 63,
     kitchenNote: LocalizedText(
-      ar: 'فرن ٢٠٠°م حتى تتكرمل الحواف',
+      ar: 'فرن 200°م حتى تتكرمل الحواف',
       en: 'Oven 200°C until the edges catch',
     ),
   );

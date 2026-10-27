@@ -30,7 +30,7 @@ void main() {
           fiber: components[2] as FiberOption,
         ),
         mode: FulfilmentMode.pickup,
-        payment: PaymentMethod.cash,
+        payment: PaymentMethod.counter,
       );
 
   // -------------------------------------------------------------------
@@ -687,7 +687,7 @@ void main() {
       const OrderDraft half = OrderDraft(
         selection: PlateSelection(protein: chicken),
         mode: FulfilmentMode.pickup,
-        payment: PaymentMethod.cash,
+        payment: PaymentMethod.counter,
       );
       expect(
         half.blockerIn(InventoryLedger().availability)!.en,

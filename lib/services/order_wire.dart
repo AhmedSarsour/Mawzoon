@@ -89,6 +89,11 @@ OrderPlaced orderPlacedFrom(Map<String, dynamic> row) => OrderPlaced(
       orderNumber: (row['order_number'] as num).toInt(),
       total: Money((row['total_minor_units'] as num).toInt()),
       replayed: row['replayed'] as bool? ?? false,
+      awaitingPayment: row['status'] == 'AWAITING_PAYMENT',
+      paymentDueAt: switch (row['payment_due_at']) {
+        final String at => DateTime.tryParse(at),
+        _ => null,
+      },
     );
 
 /// What a failed `place_order` call means for the guest.
@@ -111,6 +116,17 @@ PlaceOrderOutcome outcomeFromError(Object error) {
     'menu_changed' => const OrderRefused(RefusalReason.menuChanged),
     'needs_phone' => const OrderRefused(RefusalReason.needsPhone),
     'needs_address' => const OrderRefused(RefusalReason.needsAddress),
+    'delivery_unavailable' ||
+    'card_unavailable' ||
+    'card_required' =>
+      const OrderRefused(RefusalReason.optionUnavailable),
+    // detail = the open order's id, hint = its number.
+    'unpaid_order_open' => OrderRefused(
+        RefusalReason.unpaidOrderOpen,
+        openOrderId: error.details is String ? error.details! as String : null,
+        openOrderNumber: int.tryParse(error.hint ?? ''),
+      ),
+    'counter_blocked' => const OrderRefused(RefusalReason.counterBlocked),
     _ => const OrderRefused(RefusalReason.couldNotSend),
   };
 }

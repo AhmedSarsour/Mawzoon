@@ -61,7 +61,7 @@ void main() {
         fiber: MawzoonCatalog.charredGardenVeggies,
       ),
       mode: FulfilmentMode.pickup,
-      payment: PaymentMethod.cash,
+      payment: PaymentMethod.counter,
     );
     for (int i = 0; i < 20; i++) {
       manager.recordPlacedOrder(order, orderCode: 'M-$i');

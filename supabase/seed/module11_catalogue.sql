@@ -109,12 +109,15 @@ insert into public.recipe_lines (component_id, ingredient_id, amount_minor_units
   ('fiber.mediterranean_sumac_salad', 'raw.sumac', 2000)
 ;
 -- pricing: base, athletic uplift, delivery fee, VAT (basis points)
--- 4900, 1500, 1200, 1500
+-- 4900, 1500, 1200, 1800
 insert into public.pricing (id, base_plate_minor_units, athletic_uplift_minor_units,
-  delivery_fee_minor_units, vat_basis_points, catalogue_fingerprint)
-values (true, 4900, 1500, 1200, 1500, '7b9236aabfaeb181')
+  delivery_fee_minor_units, vat_basis_points, delivery_enabled, card_payment_enabled,
+  catalogue_fingerprint)
+values (true, 4900, 1500, 1200, 1800, false, false, '1de24e44b9928488')
 on conflict (id) do update set base_plate_minor_units = excluded.base_plate_minor_units,
   athletic_uplift_minor_units = excluded.athletic_uplift_minor_units,
   delivery_fee_minor_units = excluded.delivery_fee_minor_units,
   vat_basis_points = excluded.vat_basis_points,
+  delivery_enabled = excluded.delivery_enabled,
+  card_payment_enabled = excluded.card_payment_enabled,
   catalogue_fingerprint = excluded.catalogue_fingerprint;

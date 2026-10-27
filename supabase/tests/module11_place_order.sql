@@ -24,7 +24,7 @@ $$;
 -- A valid pickup of the test plate. Tests override fields with ||.
 create function pg_temp.plate() returns jsonb language sql as $$
   select jsonb_build_object(
-    'order_type', 'PICKUP', 'payment_method', 'cash', 'volume', 'STANDARD',
+    'order_type', 'PICKUP', 'payment_method', 'counter', 'volume', 'STANDARD',
     'protein_id', 'zz_test.protein', 'carb_id', 'zz_test.carb', 'fiber_id', 'zz_test.fiber',
     'title', 'طبقي', 'nutrition',
     jsonb_build_object('calories', 550, 'protein_g', 45, 'carbs_g', 50, 'fats_g', 15.5));
@@ -45,6 +45,8 @@ insert into auth.users (id, aud, role, is_anonymous) values
   ('bbbbbbbb-0000-0000-0000-00000000000b', 'authenticated', 'authenticated', true),
   ('55555555-0000-0000-0000-000000000005', 'authenticated', 'authenticated', false);
 update public.profiles set is_staff = true where id = '55555555-0000-0000-0000-000000000005';
+-- Delivery and card are switched off live; this file tests their paths, so on (rolled back).
+update public.pricing set delivery_enabled = true, card_payment_enabled = true;
 
 insert into public.menu_components (component_id, segment, surcharge_minor_units, base_portion_grams)
 values ('zz_test.protein', 'protein', 0, 100), ('zz_test.carb', 'smartCarb', 0, 100),
@@ -90,13 +92,13 @@ do $$ begin
     $q$select public.place_order(pg_temp.plate() || '{"signature_plate_id":"signature.ember_standard"}', gen_random_uuid(), pg_temp.fp())$q$,
     'invalid_plate');
   perform pg_temp.expect_error(
-    $q$select public.place_order(pg_temp.plate() || '{"order_type":"DELIVERY","customer_phone":"0500000000"}', gen_random_uuid(), pg_temp.fp())$q$,
+    $q$select public.place_order(pg_temp.plate() || '{"order_type":"DELIVERY","payment_method":"card","customer_phone":"0500000000"}', gen_random_uuid(), pg_temp.fp())$q$,
     'needs_address');
   perform pg_temp.expect_error(
-    $q$select public.place_order(pg_temp.plate() || '{"order_type":"DELIVERY","delivery_address":"الرياض"}', gen_random_uuid(), pg_temp.fp())$q$,
+    $q$select public.place_order(pg_temp.plate() || '{"order_type":"DELIVERY","payment_method":"card","delivery_address":"شارع الجبل"}', gen_random_uuid(), pg_temp.fp())$q$,
     'needs_phone');
   perform pg_temp.expect_error(
-    $q$select public.place_order(pg_temp.plate() || '{"order_type":"DELIVERY","delivery_address":"الرياض","customer_phone":"call me"}', gen_random_uuid(), pg_temp.fp())$q$,
+    $q$select public.place_order(pg_temp.plate() || '{"order_type":"DELIVERY","payment_method":"card","delivery_address":"شارع الجبل","customer_phone":"call me"}', gen_random_uuid(), pg_temp.fp())$q$,
     'needs_phone');
   if pg_temp.stock('zz_test.meat') <> 600000 then
     raise exception 'FAIL: a refused order still took stock';
@@ -110,8 +112,8 @@ declare r jsonb;
 begin
   r := public.place_order(pg_temp.plate(), '00000000-0000-0000-0000-0000000000a1', pg_temp.fp());
   insert into t values ('a1', r);
-  if (r ->> 'total_minor_units')::int <> 5635 or (r ->> 'replayed')::boolean then
-    raise exception 'FAIL: pickup total %, expected 5635 (4900 + 15%% VAT)', r;
+  if (r ->> 'total_minor_units')::int <> 4900 or (r ->> 'replayed')::boolean then
+    raise exception 'FAIL: pickup total %, expected 4900 (VAT inside)', r;
   end if;
   if pg_temp.stock('zz_test.meat') <> 500000 or pg_temp.stock('zz_test.oil') <> 997000 then
     raise exception 'FAIL: draw wrong: meat %, oil %',
@@ -126,14 +128,36 @@ begin
   if pg_temp.stock('zz_test.meat') <> 500000 then
     raise exception 'FAIL: replay took stock again';
   end if;
+  if r ->> 'status' <> 'AWAITING_PAYMENT' or r ->> 'payment_due_at' is null then
+    raise exception 'FAIL: a new order must start unpaid with a deadline: %', r;
+  end if;
 
-  r := public.place_order(pg_temp.plate() || '{"order_type":"DELIVERY","delivery_address":"حي العليا","customer_phone":"+966 50-000-0000"}',
+  -- Module 12: one open unpaid order per guest; the refusal names it.
+  declare v_detail text; v_hint text;
+  begin
+    perform public.place_order(pg_temp.plate(), gen_random_uuid(), pg_temp.fp());
+    raise exception 'FAIL: second unpaid order placed';
+  exception when others then
+    if sqlerrm like 'FAIL:%' then raise; end if;
+    get stacked diagnostics v_detail = pg_exception_detail, v_hint = pg_exception_hint;
+    if sqlerrm <> 'unpaid_order_open' or v_detail <> r ->> 'order_id'
+       or v_hint <> r ->> 'order_number' then
+      raise exception 'FAIL: got % / % / %', sqlerrm, v_detail, v_hint;
+    end if;
+  end;
+
+  -- The cashier takes the money; now the guest may order again.
+  perform pg_temp.act_as('55555555-0000-0000-0000-000000000005');
+  perform public.mark_paid_counter((r ->> 'order_id')::uuid);
+  perform pg_temp.act_as('aaaaaaaa-0000-0000-0000-00000000000a');
+
+  r := public.place_order(pg_temp.plate() || '{"order_type":"DELIVERY","payment_method":"card","delivery_address":"شارع الجبل","customer_phone":"+972 50-000-0000"}',
     '00000000-0000-0000-0000-0000000000a2', pg_temp.fp());
   insert into t values ('a2', r);
-  if (r ->> 'total_minor_units')::int <> 7015 then
-    raise exception 'FAIL: delivery total %, expected 7015', r;
+  if (r ->> 'total_minor_units')::int <> 6100 then
+    raise exception 'FAIL: delivery total %, expected 6100', r;
   end if;
-  if (select customer_phone from public.orders where id = (r ->> 'order_id')::uuid) <> '+966500000000' then
+  if (select customer_phone from public.orders where id = (r ->> 'order_id')::uuid) <> '+972500000000' then
     raise exception 'FAIL: phone not normalised';
   end if;
   if (select count(*) from public.orders) <> 2 or (select count(*) from public.order_items) <> 2 then
@@ -146,6 +170,8 @@ begin
 end $$;
 
 -- Meat is now at 4 portions, under the buffer of 5: sold out, named, nothing taken.
+-- Guest B, because A has an unpaid order open.
+select pg_temp.act_as('bbbbbbbb-0000-0000-0000-00000000000b');
 select pg_temp.expect_error(
   $q$select public.place_order(pg_temp.plate(), gen_random_uuid(), pg_temp.fp())$q$, 'sold_out');
 do $$ begin
@@ -180,18 +206,21 @@ select pg_temp.expect_error(
 select pg_temp.expect_error(
   $q$select public.cancel_order(gen_random_uuid())$q$, 'not_found');
 
--- ── Guest A cancels a PENDING order: stock back once ─────────────────────────
+-- ── Guest A: a paid order is staff's to cancel; an unpaid one cancels, stock back once
 select pg_temp.act_as('aaaaaaaa-0000-0000-0000-00000000000a');
+select pg_temp.expect_error(
+  format($q$select public.cancel_order(%L)$q$, (select v ->> 'order_id' from t where k = 'a1')),
+  'too_late_to_cancel');
 do $$
 declare r jsonb;
 begin
-  r := public.cancel_order((select v ->> 'order_id' from t where k = 'a1')::uuid);
+  r := public.cancel_order((select v ->> 'order_id' from t where k = 'a2')::uuid);
   if not (r ->> 'restored')::boolean or pg_temp.stock('zz_test.meat') <> 500000
      or pg_temp.stock('zz_test.oil') <> 994000 + 3000 then
     raise exception 'FAIL: cancel did not restore exactly the draw: % meat % oil %',
       r, pg_temp.stock('zz_test.meat'), pg_temp.stock('zz_test.oil');
   end if;
-  r := public.cancel_order((select v ->> 'order_id' from t where k = 'a1')::uuid);
+  r := public.cancel_order((select v ->> 'order_id' from t where k = 'a2')::uuid);
   if (r ->> 'restored')::boolean or pg_temp.stock('zz_test.meat') <> 500000 then
     raise exception 'FAIL: second cancel restored again';
   end if;
@@ -201,22 +230,22 @@ end $$;
 select pg_temp.act_as('55555555-0000-0000-0000-000000000005');
 select pg_temp.expect_error(
   format($q$update public.orders set status = 'CANCELLED' where id = %L$q$,
-    (select v ->> 'order_id' from t where k = 'a2')),
+    (select v ->> 'order_id' from t where k = 'a1')),
   format('cancel order %s with cancel_order(), so its stock is put back',
-    (select v ->> 'order_number' from t where k = 'a2')));
-update public.orders set status = 'ACCEPTED' where id = (select (v ->> 'order_id')::uuid from t where k = 'a2');
+    (select v ->> 'order_number' from t where k = 'a1')));
+update public.orders set status = 'ACCEPTED' where id = (select (v ->> 'order_id')::uuid from t where k = 'a1');
 
 select pg_temp.act_as('aaaaaaaa-0000-0000-0000-00000000000a');
 select pg_temp.expect_error(
-  format($q$select public.cancel_order(%L)$q$, (select v ->> 'order_id' from t where k = 'a2')),
+  format($q$select public.cancel_order(%L)$q$, (select v ->> 'order_id' from t where k = 'a1')),
   'too_late_to_cancel');
 
 select pg_temp.act_as('55555555-0000-0000-0000-000000000005');
 do $$
 declare r jsonb;
 begin
-  update public.orders set status = 'ASSEMBLING' where id = (select (v ->> 'order_id')::uuid from t where k = 'a2');
-  r := public.cancel_order((select v ->> 'order_id' from t where k = 'a2')::uuid);
+  update public.orders set status = 'ASSEMBLING' where id = (select (v ->> 'order_id')::uuid from t where k = 'a1');
+  r := public.cancel_order((select v ->> 'order_id' from t where k = 'a1')::uuid);
   if (r ->> 'restored')::boolean or pg_temp.stock('zz_test.meat') <> 500000 then
     raise exception 'FAIL: an order already being cooked gave its stock back';
   end if;

@@ -21,6 +21,8 @@ final class OrderPlaced extends PlaceOrderOutcome {
     required this.orderNumber,
     required this.total,
     this.replayed = false,
+    this.awaitingPayment = false,
+    this.paymentDueAt,
   });
 
   /// The server's id for the order.
@@ -35,6 +37,13 @@ final class OrderPlaced extends PlaceOrderOutcome {
 
   /// True when this answers a retry of an order that had already gone through.
   final bool replayed;
+
+  /// Not paid yet: the kitchen won't see it until the counter or the card
+  /// company confirms payment (Module 12). Every fresh order starts here.
+  final bool awaitingPayment;
+
+  /// When an unpaid order expires and its portions go back on sale.
+  final DateTime? paymentDueAt;
 
   /// The code on the kitchen ticket and the guest's confirmation.
   String get code => 'M-$orderNumber';
@@ -54,6 +63,18 @@ enum RefusalReason {
   /// Delivery without an address.
   needsAddress,
 
+  /// Delivery or card chosen while the server has it switched off — this
+  /// build and the server's launch switches disagree.
+  optionUnavailable,
+
+  /// This guest already has an order waiting for payment; the refusal names
+  /// it ([OrderRefused.openOrderId]) so the app can show that one instead.
+  unpaidOrderOpen,
+
+  /// Too many recent counter orders expired unpaid: pay at the counter is
+  /// paused for this guest (card still works when it's switched on).
+  counterBlocked,
+
   /// Anything the guest can't fix by editing the sheet: a malformed request,
   /// a lost session, a key reused by someone else.
   couldNotSend,
@@ -62,13 +83,25 @@ enum RefusalReason {
 /// The kitchen said no.
 final class OrderRefused extends PlaceOrderOutcome {
   /// Creates the refused outcome.
-  const OrderRefused(this.reason, {this.componentId});
+  const OrderRefused(
+    this.reason, {
+    this.componentId,
+    this.openOrderId,
+    this.openOrderNumber,
+  });
 
   /// Why.
   final RefusalReason reason;
 
   /// The component that sold out, for [RefusalReason.soldOut].
   final String? componentId;
+
+  /// The guest's order still waiting for payment, for
+  /// [RefusalReason.unpaidOrderOpen].
+  final String? openOrderId;
+
+  /// That order's number (its code is `M-<number>`).
+  final int? openOrderNumber;
 
   /// Whether tapping again could help. Only for [RefusalReason.couldNotSend];
   /// the others need the guest to change something first.
@@ -83,6 +116,18 @@ final class OrderRefused extends PlaceOrderOutcome {
           ),
         RefusalReason.needsPhone => OrderDraft.needsPhoneBlocker,
         RefusalReason.needsAddress => OrderDraft.needsAddressBlocker,
+        RefusalReason.optionUnavailable => const LocalizedText(
+            ar: 'هذا الخيار غير متاح الآن — اختر غيره',
+            en: "That option isn't available now — pick another",
+          ),
+        RefusalReason.unpaidOrderOpen => const LocalizedText(
+            ar: 'لديك طلب بانتظار الدفع — ادفعه أو ألغِه أولًا',
+            en: 'You have an order waiting for payment — pay or cancel it first',
+          ),
+        RefusalReason.counterBlocked => const LocalizedText(
+            ar: 'انتهت عدة طلبات دون دفع مؤخرًا — الدفع عند الاستلام متوقف مؤقتًا',
+            en: 'Several orders expired unpaid lately — pay at pickup is paused',
+          ),
         RefusalReason.couldNotSend => const LocalizedText(
             ar: 'تعذّر إرسال الطلب — حاول مجددًا',
             en: "Couldn't send your order — try again",
@@ -101,7 +146,8 @@ final class OrderRefused extends PlaceOrderOutcome {
   }
 
   @override
-  String toString() => 'OrderRefused(${reason.name}, $componentId)';
+  String toString() =>
+      'OrderRefused(${reason.name}, ${componentId ?? openOrderId})';
 }
 
 /// Nobody answered. The order may or may not have been placed; retrying with

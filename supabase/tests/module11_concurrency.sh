@@ -2,6 +2,8 @@
 # Real two-connection races against place_order (a single session can't fake this).
 #   1. Two guests, one sellable portion left: exactly one order, stock drawn once.
 #   2. One guest, same idempotency key twice at once: one order, drawn once.
+#   3. One guest, two different keys at once: one order, the other unpaid_order_open.
+#   4. Two cashiers mark the same order paid at once: one payment, the other already_paid.
 # Uses committed zz_race.* rows and deletes them on exit. Run: bash supabase/tests/module11_concurrency.sh
 set -euo pipefail
 DB="$(cat ~/.config/mawzoon/db_url)"
@@ -9,11 +11,14 @@ q() { psql "$DB" -X -q -A -t -v ON_ERROR_STOP=1 "$@"; }
 TMP="$(mktemp -d)"
 U1=cccccccc-0000-0000-0000-0000000000c1
 U2=cccccccc-0000-0000-0000-0000000000c2
+S1=cccccccc-0000-0000-0000-0000000000c5
 
 db_cleanup() {
   q >/dev/null <<SQL
+delete from public.payments where order_id in
+  (select id from public.orders where customer_id in ('$U1', '$U2'));
 delete from public.orders where customer_id in ('$U1', '$U2');
-delete from auth.users where id in ('$U1', '$U2');
+delete from auth.users where id in ('$U1', '$U2', '$S1');
 delete from public.menu_components where component_id like 'zz_race.%';
 delete from public.raw_ingredients where id like 'zz_race.%';
 SQL
@@ -23,10 +28,14 @@ db_cleanup
 
 fixtures() { # $1 = meat stock in mg
   q >/dev/null <<SQL
+delete from public.payments where order_id in
+  (select id from public.orders where customer_id in ('$U1', '$U2'));
 delete from public.orders where customer_id in ('$U1', '$U2');
 insert into auth.users (id, aud, role, is_anonymous) values
-  ('$U1', 'authenticated', 'authenticated', true), ('$U2', 'authenticated', 'authenticated', true)
+  ('$U1', 'authenticated', 'authenticated', true), ('$U2', 'authenticated', 'authenticated', true),
+  ('$S1', 'authenticated', 'authenticated', false)
 on conflict (id) do nothing;
+update public.profiles set is_staff = true where id = '$S1';
 insert into public.menu_components values ('zz_race.protein', 'protein', 0, 100),
   ('zz_race.carb', 'smartCarb', 0, 100), ('zz_race.fiber', 'vitalFiber', 0, 100)
 on conflict do nothing;
@@ -41,7 +50,7 @@ SQL
 }
 
 FP="$(q -c "select catalogue_fingerprint from public.pricing")"
-PLATE='{"order_type":"PICKUP","payment_method":"cash","volume":"STANDARD","title":"race",
+PLATE='{"order_type":"PICKUP","payment_method":"counter","volume":"STANDARD","title":"race",
 "protein_id":"zz_race.protein","carb_id":"zz_race.carb","fiber_id":"zz_race.fiber",
 "nutrition":{"calories":500,"protein_g":40,"carbs_g":40,"fats_g":10}}'
 
@@ -87,4 +96,40 @@ grep -q '"replayed": true' "$TMP/d" || fail "second call should replay: $(cat "$
 [ "$(q -c "select stock_minor_units from public.raw_ingredients where id = 'zz_race.meat'")" = 1900000 ] \
   || fail "same key drew stock twice"
 echo "race 2 ok: same key -> one order, second call replayed, drawn once"
+
+# ── 3. Double tap with two keys: the profile lock lets one through.
+fixtures 2000000
+order "$U1" "$(uuidgen)" 3 >"$TMP/e" 2>&1 &
+sleep 1
+order "$U1" "$(uuidgen)" 0 >"$TMP/f" 2>&1 || true
+wait
+grep -q '"replayed": false' "$TMP/e" || fail "first tap should place: $(cat "$TMP/e")"
+grep -q 'unpaid_order_open' "$TMP/f" || fail "second tap should be unpaid_order_open: $(cat "$TMP/f")"
+[ "$(q -c "select count(*) from public.orders where customer_id = '$U1'")" = 1 ] \
+  || fail "double tap placed two unpaid orders"
+echo "race 3 ok: two keys at once -> one order, other unpaid_order_open"
+
+# ── 4. Two cashiers, one order (the one race 3 left open).
+ORDER_ID="$(q -c "select id from public.orders where customer_id = '$U1'")"
+pay() {
+  q <<SQL
+begin;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"$S1","role":"authenticated"}', true) \g /dev/null
+select public.mark_paid_counter('$ORDER_ID');
+select pg_sleep($1) \g /dev/null
+commit;
+SQL
+}
+pay 3 >"$TMP/g" 2>&1 &
+sleep 1
+pay 0 >"$TMP/h" 2>&1 || true
+wait
+grep -q '"already_paid": false' "$TMP/g" || fail "first cashier should take it: $(cat "$TMP/g")"
+grep -q '"already_paid": true' "$TMP/h" || fail "second cashier should see paid: $(cat "$TMP/h")"
+[ "$(q -c "select count(*) from public.payments where order_id = '$ORDER_ID'")" = 1 ] \
+  || fail "two cashiers recorded two payments"
+[ "$(q -c "select status from public.orders where id = '$ORDER_ID'")" = PENDING ] \
+  || fail "paid order is not PENDING"
+echo "race 4 ok: two cashiers -> one payment, order PENDING"
 echo "ALL CONCURRENCY CHECKS PASSED"

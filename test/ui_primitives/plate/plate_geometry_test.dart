@@ -200,9 +200,9 @@ void main() {
         for (int k = 3; k <= 17; k++) {
           final Offset p = m.getTangentForOffset(m.length * k / 20)!.position;
           expect(g.zones[i].contains(p.translate(-1.5, 0)), isTrue,
-              reason: 'divider $i at ${k * 5}%: left side not in zone $i');
+              reason: 'divider $i at ${k * 5}%: left side not in zone $i',);
           expect(g.zones[i + 1].contains(p.translate(1.5, 0)), isTrue,
-              reason: 'divider $i at ${k * 5}%: right side not in zone ${i + 1}');
+              reason: 'divider $i at ${k * 5}%: right side not in zone ${i + 1}',);
         }
       }
     });

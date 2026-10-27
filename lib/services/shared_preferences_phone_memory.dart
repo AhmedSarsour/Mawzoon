@@ -19,7 +19,7 @@ final class SharedPreferencesPhoneMemory implements PhoneMemory {
     final String? stored = (await _preferences()).getString(key);
     // Re-validated on the way out: a value from an older build that no longer
     // passes is treated as never given, not sent to the kitchen.
-    return stored == null ? null : saudiMobile(stored);
+    return stored == null ? null : israeliMobile(stored);
   }
 
   @override

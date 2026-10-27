@@ -17,6 +17,9 @@ PLATE_INGREDIENTS="'raw.chicken_breast','raw.house_spice_blend','raw.olive_oil',
 cleanup() {
   pkill -f "live_e2e.dart" >/dev/null 2>&1 || true
   q >/dev/null <<SQL
+delete from public.payments where order_id in (select id from public.orders where customer_id in (
+  select id from auth.users
+   where id = '$STAFF_ID' or (is_anonymous and created_at >= '$STARTED')));
 delete from public.orders where customer_id in (
   select id from auth.users
    where id = '$STAFF_ID' or (is_anonymous and created_at >= '$STARTED'));

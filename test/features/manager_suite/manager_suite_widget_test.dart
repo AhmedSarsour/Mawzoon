@@ -466,7 +466,7 @@ void main() {
           fiber: MawzoonCatalog.charredGardenVeggies,
         ),
         mode: FulfilmentMode.pickup,
-        payment: PaymentMethod.cash,
+        payment: PaymentMethod.counter,
       );
       expect(draft.isPlaceable, isTrue);
 

@@ -17,6 +17,7 @@ import 'features/order_home/presentation/order_home_screen.dart';
 import 'services/server_menu_availability.dart';
 import 'services/shared_preferences_phone_memory.dart';
 import 'services/supabase_order_gateway.dart';
+import 'services/supabase_order_tracker.dart';
 import 'services/supabase_service.dart';
 import 'ui_primitives/theme/theme.dart';
 import 'ui_primitives/theme/theme_mode_scope.dart';
@@ -67,6 +68,9 @@ class _MawzoonAppState extends State<MawzoonApp> {
   ManagerSuiteController? _demoMenu;
 
   final SharedPreferencesPhoneMemory _phones = SharedPreferencesPhoneMemory();
+
+  /// Reads and cancels this guest's own orders. Built with the gateway only.
+  late final SupabaseOrderTracker _tracker = SupabaseOrderTracker();
 
   /// Refreshes the menu when the guest comes back to the app, so a dish that
   /// sold out while the phone was in a pocket isn't offered.
@@ -157,6 +161,7 @@ class _MawzoonAppState extends State<MawzoonApp> {
       gateway: orders,
       onMenuStale: () => unawaited(widget.availability?.refresh()),
       phoneMemory: _phones,
+      tracker: _tracker,
       child: child,
     );
   }

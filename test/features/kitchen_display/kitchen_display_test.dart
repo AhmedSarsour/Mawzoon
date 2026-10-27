@@ -75,7 +75,7 @@ void main() {
       OrderDraft(
         selection: completePlate(scale: scale),
         mode: mode,
-        payment: PaymentMethod.wallet,
+        payment: PaymentMethod.card,
         address: mode == FulfilmentMode.delivery
             ? const DeliveryAddress(
                 id: 'addr.test',

@@ -44,29 +44,46 @@ void main() {
     });
   });
 
-  group('percentage', () {
-    test('rounds half away from zero rather than truncating', () {
-      // 15% of 33.33 is 4.9995 riyals; truncating would quietly lose a halala
-      // on every order.
-      expect(const Money(3333).percentage(0.15), const Money(500));
-      expect(const Money(100).percentage(0.15), const Money(15));
-      expect(const Money(1).percentage(0.5), const Money(1));
+  group('includedTax', () {
+    test('extracts 18% from a VAT-inclusive price', () {
+      // 49.00 ₪ holds 49 * 18 / 118 = 7.4746 ₪ of VAT.
+      expect(const Money(4900).includedTax(1800), const Money(747));
+      expect(const Money(6100).includedTax(1800), const Money(931));
     });
 
-    test('zero stays zero', () {
-      expect(Money.zero.percentage(0.15), Money.zero);
+    test('rounds an exact half away from zero', () {
+      // At 100%, 0.01 holds 0.005 and 0.03 holds 0.015.
+      expect(const Money(1).includedTax(10000), const Money(1));
+      expect(const Money(3).includedTax(10000), const Money(2));
+    });
+
+    test('matches remainder rounding for every amount up to 200 ₪', () {
+      for (final int bp in <int>[0, 1700, 1800, 10000]) {
+        for (int m = 0; m <= 20000; m++) {
+          final int gross = 10000 + bp;
+          final int q = (m * bp) ~/ gross;
+          final int r = (m * bp) % gross;
+          final int expected = 2 * r >= gross ? q + 1 : q;
+          expect(Money(m).includedTax(bp).minorUnits, expected,
+              reason: '$m at $bp',);
+        }
+      }
+    });
+
+    test('zero VAT (exempt dealer) is zero', () {
+      expect(const Money(4900).includedTax(0), Money.zero);
     });
   });
 
   group('formatting', () {
     test('always shows two decimal places', () {
-      expect(const Money(4900).format(AppLanguage.english), 'SAR 49.00');
-      expect(const Money(4905).format(AppLanguage.english), 'SAR 49.05');
-      expect(const Money(5).format(AppLanguage.english), 'SAR 0.05');
+      expect(const Money(4900).format(AppLanguage.english), '₪49.00');
+      expect(const Money(4905).format(AppLanguage.english), '₪49.05');
+      expect(const Money(5).format(AppLanguage.english), '₪0.05');
     });
 
     test('carries the Arabic currency mark', () {
-      expect(const Money(4900).format(AppLanguage.arabic), '49.00 ر.س');
+      expect(const Money(4900).format(AppLanguage.arabic), '49.00 ₪');
     });
 
     test('keeps Western digits in both languages', () {

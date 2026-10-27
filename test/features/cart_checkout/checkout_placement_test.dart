@@ -78,7 +78,10 @@ void main() {
                   result = await showCheckoutSheet(
                     context,
                     selection: _plate,
-                    phone: '+966501234567',
+                    phone: '+972501234567',
+                    // Edits below switch modes, so the full sheet is shown.
+                    offerDelivery: true,
+                    offerCard: true,
                   );
                 },
                 child: const Text('open'),
@@ -132,6 +135,41 @@ void main() {
     );
     expect(enabled(tester), isFalse);
     expect(staleCalls, 1);
+  });
+
+  testWidgets('counter paused for this guest: the sheet says why and stays',
+      (WidgetTester tester) async {
+    await open(tester, <PlaceOrderOutcome>[
+      const OrderRefused(RefusalReason.counterBlocked),
+    ]);
+    await tapPlace(tester);
+
+    expect(result, isNull, reason: 'nothing was placed; the sheet stays');
+    expect(
+      find.text(
+        const OrderRefused(RefusalReason.counterBlocked)
+            .message
+            .resolve(AppLanguage.arabic),
+      ),
+      findsOneWidget,
+    );
+    expect(enabled(tester), isFalse);
+  });
+
+  testWidgets('an unpaid order already open: the sheet hands back its id',
+      (WidgetTester tester) async {
+    await open(tester, <PlaceOrderOutcome>[
+      const OrderRefused(
+        RefusalReason.unpaidOrderOpen,
+        openOrderId: 'o-7',
+        openOrderNumber: 7,
+      ),
+    ]);
+    await tapPlace(tester);
+
+    expect(result, isNotNull, reason: 'the sheet closes so home can jump');
+    expect(result!.openOrderId, 'o-7');
+    expect(result!.placed, isNull);
   });
 
   testWidgets('no answer: says so, stays live, and retries with the same key',

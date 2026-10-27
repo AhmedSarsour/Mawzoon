@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/config/launch_switches.dart';
 import '../../../core/localization/localized_text.dart';
 import '../../../ui_primitives/menu/menu_scope.dart';
 import '../../../core/menu/ingredient_option.dart';
@@ -23,7 +24,7 @@ import 'order_gateway_scope.dart';
 /// What the checkout ended with.
 final class CheckoutResult {
   /// Creates a result.
-  const CheckoutResult({required this.draft, this.placed});
+  const CheckoutResult({required this.draft, this.placed, this.openOrderId});
 
   /// The order as the guest confirmed it.
   final OrderDraft draft;
@@ -31,6 +32,10 @@ final class CheckoutResult {
   /// The kitchen's answer, or null when no [OrderGatewayScope] was present
   /// (a test or preview confirming locally).
   final OrderPlaced? placed;
+
+  /// Set when the server refused because this guest already has an unpaid
+  /// order: the home screen opens that one instead.
+  final String? openOrderId;
 }
 
 /// Opens the checkout sheet for [selection] and returns the placed order.
@@ -44,6 +49,8 @@ Future<CheckoutResult?> showCheckoutSheet(
   BuildContext context, {
   required PlateSelection selection,
   String? phone,
+  bool offerDelivery = LaunchSwitches.delivery,
+  bool offerCard = LaunchSwitches.cardPayment,
 }) {
   return showModalBottomSheet<CheckoutResult>(
     context: context,
@@ -53,7 +60,12 @@ Future<CheckoutResult?> showCheckoutSheet(
     // Lifts the sheet above the keyboard while the phone field is in use.
     builder: (BuildContext context) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: CheckoutSheet(selection: selection, phone: phone),
+      child: CheckoutSheet(
+        selection: selection,
+        phone: phone,
+        offerDelivery: offerDelivery,
+        offerCard: offerCard,
+      ),
     ),
   );
 }
@@ -72,13 +84,25 @@ Future<CheckoutResult?> showCheckoutSheet(
 /// is a hungry person abandoning an order.
 class CheckoutSheet extends StatefulWidget {
   /// Creates the sheet.
-  const CheckoutSheet({required this.selection, this.phone, super.key});
+  const CheckoutSheet({
+    required this.selection,
+    this.phone,
+    this.offerDelivery = LaunchSwitches.delivery,
+    this.offerCard = LaunchSwitches.cardPayment,
+    super.key,
+  });
 
   /// The plate being ordered.
   final PlateSelection selection;
 
   /// The guest's remembered mobile (normalised), or null the first time.
   final String? phone;
+
+  /// Whether delivery is offered. Off: pickup only, no mode switch shown.
+  final bool offerDelivery;
+
+  /// Whether paying by card in the app is offered.
+  final bool offerCard;
 
   @override
   State<CheckoutSheet> createState() => _CheckoutSheetState();
@@ -87,10 +111,13 @@ class CheckoutSheet extends StatefulWidget {
 class _CheckoutSheetState extends State<CheckoutSheet> {
   late OrderDraft _draft = OrderDraft(
     selection: widget.selection,
-    mode: FulfilmentMode.delivery,
-    // The fastest instrument, preselected. A checkout that opens with nothing
-    // chosen has quietly made the guest do the work twice.
-    payment: PaymentMethod.wallet,
+    mode:
+        widget.offerDelivery ? FulfilmentMode.delivery : FulfilmentMode.pickup,
+    // Preselected. A checkout that opens with nothing chosen has quietly made
+    // the guest do the work twice.
+    payment: widget.offerDelivery && widget.offerCard
+        ? PaymentMethod.card
+        : PaymentMethod.counter,
     address: SavedPlaces.defaultAddress,
     phone: widget.phone,
   );
@@ -123,7 +150,7 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
 
   /// Typing is not a choice: no haptic per keystroke.
   void _typePhone(String text) => _update(
-        _draft.withPhone(saudiMobile(text)),
+        _draft.withPhone(israeliMobile(text)),
         haptic: false,
       );
 
@@ -171,6 +198,13 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
           _outcomeUnknown = false;
           _retryNotice = outcome.message;
         });
+      case OrderRefused(
+          reason: RefusalReason.unpaidOrderOpen,
+          :final String openOrderId,
+        ):
+        Navigator.of(context).pop(
+          CheckoutResult(draft: _draft, openOrderId: openOrderId),
+        );
       case OrderRefused():
         if (outcome.reason == RefusalReason.soldOut ||
             outcome.reason == RefusalReason.menuChanged) {
@@ -223,18 +257,21 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
                     children: <Widget>[
                       _PlateSummary(draft: _draft),
                       SizedBox(height: context.space.loose),
-                      const _SectionLabel(
-                        text: LocalizedText(
-                          ar: 'كيف تستلم',
-                          en: 'How you get it',
+                      if (widget.offerDelivery) ...<Widget>[
+                        const _SectionLabel(
+                          text: LocalizedText(
+                            ar: 'كيف تستلم',
+                            en: 'How you get it',
+                          ),
                         ),
-                      ),
-                      SizedBox(height: context.space.snug),
-                      _ModeSwitch(
-                        mode: _draft.mode,
-                        onChanged: (FulfilmentMode mode) =>
-                            _update(_draft.copyWith(mode: mode)),
-                      ),
+                        SizedBox(height: context.space.snug),
+                        _ModeSwitch(
+                          mode: _draft.mode,
+                          onChanged: (FulfilmentMode mode) =>
+                              _update(_draft.withMode(mode)),
+                        ),
+                      ] else
+                        const _PickupLine(),
                       if (_draft.mode == FulfilmentMode.delivery) ...<Widget>[
                         SizedBox(height: context.space.base),
                         _AddressPicker(
@@ -260,6 +297,11 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
                       ),
                       SizedBox(height: context.space.snug),
                       _PaymentPicker(
+                        methods: <PaymentMethod>[
+                          PaymentMethod.counter,
+                          if (widget.offerCard) PaymentMethod.card,
+                        ],
+                        mode: _draft.mode,
                         selected: _draft.payment,
                         onChanged: (PaymentMethod method) =>
                             _update(_draft.copyWith(payment: method)),
@@ -388,6 +430,36 @@ class _PlateSummary extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// With delivery off there is nothing to choose: one line says how and when.
+class _PickupLine extends StatelessWidget {
+  const _PickupLine();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLanguage language = context.appLanguage;
+    return Row(
+      children: <Widget>[
+        Icon(
+          Icons.storefront_outlined,
+          size: 20,
+          color: context.colors.inkSoft,
+        ),
+        SizedBox(width: context.space.snug),
+        Expanded(
+          child: MawzoonText(
+            language == AppLanguage.arabic
+                ? 'استلام من المطعم · ${FulfilmentMode.pickup.estimate.ar}'
+                : 'Pickup at the restaurant · '
+                    '${FulfilmentMode.pickup.estimate.en}',
+            style: context.type.caption,
+            color: context.colors.inkSoft,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -552,7 +624,7 @@ class _PhoneEntry extends StatelessWidget {
                   Directionality(
                     textDirection: TextDirection.ltr,
                     child: Text(
-                      formatSaudiMobile(remembered),
+                      formatIsraeliMobile(remembered),
                       style: context.type.dishName
                           .copyWith(color: context.colors.ink),
                     ),
@@ -599,7 +671,9 @@ class _PhoneEntry extends StatelessWidget {
             controller: controller,
             onChanged: onChanged,
             keyboardType: TextInputType.phone,
-            autofillHints: const <String>[AutofillHints.telephoneNumberNational],
+            autofillHints: const <String>[
+              AutofillHints.telephoneNumberNational,
+            ],
             inputFormatters: <TextInputFormatter>[
               FilteringTextInputFormatter.allow(RegExp('[0-9٠-٩۰-۹]')),
               LengthLimitingTextInputFormatter(10),
@@ -611,30 +685,7 @@ class _PhoneEntry extends StatelessWidget {
             ),
             decoration: mawzoonInputDecoration(
               context,
-              hint: '5X XXX XXXX',
-              prefix: Padding(
-                padding: EdgeInsetsDirectional.symmetric(
-                  horizontal: context.space.base,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(
-                      '+966',
-                      style: context.type.body.copyWith(
-                        color: context.colors.inkSoft,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(width: context.space.snug),
-                    Container(
-                      width: 1,
-                      height: 22,
-                      color: context.colors.hairline,
-                    ),
-                  ],
-                ),
-              ),
+              hint: '05X-XXX-XXXX',
             ),
           ),
         ),
@@ -652,9 +703,17 @@ class _PhoneEntry extends StatelessWidget {
   }
 }
 
+/// Counter or card, as big cards with what happens next written on them.
 class _PaymentPicker extends StatelessWidget {
-  const _PaymentPicker({required this.selected, required this.onChanged});
+  const _PaymentPicker({
+    required this.methods,
+    required this.mode,
+    required this.selected,
+    required this.onChanged,
+  });
 
+  final List<PaymentMethod> methods;
+  final FulfilmentMode mode;
   final PaymentMethod selected;
   final ValueChanged<PaymentMethod> onChanged;
 
@@ -663,35 +722,59 @@ class _PaymentPicker extends StatelessWidget {
     final AppLanguage language = context.appLanguage;
     return Column(
       children: <Widget>[
-        for (final PaymentMethod method in PaymentMethod.values)
+        for (final PaymentMethod method in methods)
           Padding(
             padding: EdgeInsetsDirectional.only(bottom: context.space.snug),
-            child: _Choice(
-              selected: method == selected,
-              onPressed: () => onChanged(method),
-              semanticLabel: method.label.resolve(language),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        MawzoonText(
-                          method.label.resolve(language),
-                          style: context.type.dishName,
+            child: Builder(
+              builder: (BuildContext context) {
+                // Greyed with its reason, not hidden: a missing option makes
+                // the guest wonder where it went.
+                final bool usable =
+                    !(method.pickupOnly && mode == FulfilmentMode.delivery);
+                final bool chosen = usable && method == selected;
+                return _Choice(
+                  selected: chosen,
+                  enabled: usable,
+                  onPressed: () => onChanged(method),
+                  semanticLabel: method.label.resolve(language),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(
+                        method == PaymentMethod.counter
+                            ? Icons.storefront_outlined
+                            : Icons.credit_card_outlined,
+                        size: 28,
+                        color: chosen
+                            ? context.colors.olive
+                            : context.colors.inkSoft,
+                      ),
+                      SizedBox(width: context.space.base),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            MawzoonText(
+                              method.label.resolve(language),
+                              style: context.type.dishName,
+                              color: usable ? null : context.colors.inkFaint,
+                            ),
+                            MawzoonText(
+                              (usable
+                                      ? method.detail
+                                      : PaymentMethod.pickupOnlyReason)
+                                  .resolve(language),
+                              style: context.type.tagLabel,
+                              color: context.colors.inkFaint,
+                            ),
+                          ],
                         ),
-                        MawzoonText(
-                          method.detail.resolve(language),
-                          style: context.type.tagLabel,
-                          color: context.colors.inkFaint,
-                        ),
-                      ],
-                    ),
+                      ),
+                      if (chosen) const BalanceBadge(size: 18),
+                    ],
                   ),
-                  if (method == selected) const BalanceBadge(size: 18),
-                ],
-              ),
+                );
+              },
             ),
           ),
       ],
@@ -706,16 +789,19 @@ class _Choice extends StatelessWidget {
     required this.onPressed,
     required this.child,
     required this.semanticLabel,
+    this.enabled = true,
   });
 
   final bool selected;
+  final bool enabled;
   final VoidCallback onPressed;
   final Widget child;
   final String semanticLabel;
 
   @override
   Widget build(BuildContext context) => TactileFeedbackWell(
-        onPressed: onPressed,
+        onPressed: enabled ? onPressed : null,
+        enabled: enabled,
         selected: selected,
         semanticLabel: semanticLabel,
         child: AnimatedContainer(
@@ -727,7 +813,9 @@ class _Choice extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected
                 ? context.colors.structureElevated
-                : context.colors.structure,
+                : enabled
+                    ? context.colors.structure
+                    : context.colors.canvas,
             borderRadius: context.space.controlRadius,
             border: Border.all(
               color: selected ? context.colors.olive : context.colors.hairline,
@@ -747,9 +835,13 @@ class _PriceLines extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppLanguage language = context.appLanguage;
+    final (LocalizedText, Money)? vat = breakdown.includedTaxNote;
     return Column(
       children: <Widget>[
-        for (final (LocalizedText label, Money amount) in breakdown.lines())
+        for (final (LocalizedText label, Money amount) in <(
+          LocalizedText,
+          Money
+        )>[...breakdown.lines(), if (vat != null) vat])
           Padding(
             padding: EdgeInsetsDirectional.only(bottom: context.space.tight),
             child: Row(
@@ -836,20 +928,17 @@ class _ConfirmBar extends StatelessWidget {
           TactileFeedbackWell(
             onPressed: ready ? onPlace : null,
             enabled: ready,
-            semanticLabel: language == AppLanguage.arabic
-                ? 'تأكيد الطلب'
-                : 'Place order',
+            semanticLabel:
+                language == AppLanguage.arabic ? 'تأكيد الطلب' : 'Place order',
             child: Container(
               width: double.infinity,
-              constraints:
-                  BoxConstraints(minHeight: context.space.thumbTarget),
+              constraints: BoxConstraints(minHeight: context.space.thumbTarget),
               alignment: Alignment.center,
               padding: EdgeInsetsDirectional.symmetric(
                 vertical: context.space.base,
               ),
               decoration: BoxDecoration(
-                color:
-                    ready ? context.colors.ember : context.colors.structure,
+                color: ready ? context.colors.ember : context.colors.structure,
                 borderRadius: context.space.pillRadius,
                 border:
                     ready ? null : Border.all(color: context.colors.hairline),
@@ -863,9 +952,7 @@ class _ConfirmBar extends StatelessWidget {
                         ? 'تأكيد الطلب'
                         : 'Place order'),
                 style: context.type.buttonLabel,
-                color: ready
-                    ? context.colors.onEmber
-                    : context.colors.inkFaint,
+                color: ready ? context.colors.onEmber : context.colors.inkFaint,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
